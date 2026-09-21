@@ -1,0 +1,1 @@
+its a bots workspace like GrokBot but built like UI/UX of whatsapp, so instead of chatting with real contacts my app lets me chat with bots which i create to do a specific task for me, it also has a Chief Bot that Manages all these bots. so i am working to do add some very important few modifications to it.

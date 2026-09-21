@@ -1,0 +1,47 @@
+# Xcode
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/**/*
+*.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings
+*.xcuserdatad/
+
+# Build products
+DerivedData/
+build/
+*.o
+*.a
+*.so
+*.dll
+*.dylib
+
+# Swift Package
+.build/
+
+# CocoaPods
+Pods/
+Podfile.lock
+
+# Carthage
+Carthage/
+
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/test_output
+
+# Mavis (design tool state)
+.mavis/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# User-specific
+*.xcodeproj/xcuserdata/*/
+
+# Distribution
+*.iowa
+*.xcarchive
+*.xcpushed
