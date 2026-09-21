@@ -1,5 +1,5 @@
 import XCTest
-@testable import Confabula
+@testable import BrainNotes
 
 /// Covers the display-side split of a Captain reply: prose for the bubble,
 /// the action block lifted out for the crew card. The block must leave no

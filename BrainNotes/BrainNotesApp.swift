@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 @main
-struct ConfabulaApp: App {
+struct BrainNotesApp: App {
     /// One on-device store for bots and their messages.
     @State private var container: ModelContainer?
     @State private var providers = ProviderStore()

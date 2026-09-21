@@ -1,6 +1,6 @@
 import XCTest
 import SwiftData
-@testable import Confabula
+@testable import BrainNotes
 
 /// Proves the full Captain execution path with a hardcoded reply: fenced
 /// envelope → parse → validate → spawn into a real in-memory store, plus the

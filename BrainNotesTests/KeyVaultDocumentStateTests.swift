@@ -1,6 +1,6 @@
 import XCTest
 import SwiftData
-@testable import Confabula
+@testable import BrainNotes
 
 /// The document card's editing rules, in isolation: the discard rule for
 /// abandoned drafts, secret masking and generation, and — the piece the whole

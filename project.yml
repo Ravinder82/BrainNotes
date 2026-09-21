@@ -1,6 +1,6 @@
-name: Confabula
+name: BrainNotes
 options:
-  bundleIdPrefix: com.confabula
+  bundleIdPrefix: com.brainnotes
   deploymentTarget:
     iOS: "18.0"
   createIntermediateGroups: true
@@ -15,16 +15,16 @@ settings:
     SWIFT_STRICT_CONCURRENCY: minimal
 
 targets:
-  Confabula:
+  BrainNotes:
     type: application
     platform: iOS
     sources:
-      - path: Confabula
+      - path: BrainNotes
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.confabula.app
-        PRODUCT_NAME: Confabula
-        INFOPLIST_FILE: Confabula/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.brainnotes.app
+        PRODUCT_NAME: BrainNotes
+        INFOPLIST_FILE: BrainNotes/Info.plist
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         TARGETED_DEVICE_FAMILY: "1,2"
@@ -32,33 +32,33 @@ targets:
         GENERATE_INFOPLIST_FILE: NO
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"
-        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UIApplicationScene_Manifest_Generation: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
-        CODE_SIGN_ENTITLEMENTS: Confabula/Confabula.entitlements
+        CODE_SIGN_ENTITLEMENTS: BrainNotes/BrainNotes.entitlements
         CODE_SIGNING_ALLOWED: YES
         CODE_SIGNING_REQUIRED: YES
 
-  ConfabulaUITests:
+  BrainNotesUITests:
     type: bundle.ui-testing
     platform: iOS
     sources:
-      - path: ConfabulaUITests
+      - path: BrainNotesUITests
     dependencies:
-      - target: Confabula
+      - target: BrainNotes
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.confabula.tests.ui
+        PRODUCT_BUNDLE_IDENTIFIER: com.brainnotes.tests.ui
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
 
-  ConfabulaTests:
+  BrainNotesTests:
     type: bundle.unit-test
     platform: iOS
     sources:
-      - path: ConfabulaTests
+      - path: BrainNotesTests
     dependencies:
-      - target: Confabula
+      - target: BrainNotes
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.confabula.tests.unit
+        PRODUCT_BUNDLE_IDENTIFIER: com.brainnotes.tests.unit
         GENERATE_INFOPLIST_FILE: YES

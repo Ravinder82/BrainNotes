@@ -1,5 +1,5 @@
 import XCTest
-@testable import Confabula
+@testable import BrainNotes
 
 /// Deterministic coverage for the streaming client's wire contract: typed
 /// events, usage extraction, request shape, and error mapping. All transport

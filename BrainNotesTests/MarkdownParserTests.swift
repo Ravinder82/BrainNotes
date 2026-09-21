@@ -1,5 +1,5 @@
 import XCTest
-@testable import Confabula
+@testable import BrainNotes
 
 /// Parser tests for the markdown renderer.
 ///

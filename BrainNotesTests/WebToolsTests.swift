@@ -1,5 +1,5 @@
 import XCTest
-@testable import Confabula
+@testable import BrainNotes
 
 /// Covers the web-tools feature end to end at the seams that matter: the two
 /// wire clients, the block protocol the bots speak, the store's key and switch

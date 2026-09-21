@@ -1,6 +1,6 @@
 import XCTest
 import SwiftData
-@testable import Confabula
+@testable import BrainNotes
 
 @MainActor
 final class BotConfigurationTests: XCTestCase {

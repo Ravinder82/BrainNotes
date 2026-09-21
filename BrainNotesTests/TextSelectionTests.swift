@@ -1,6 +1,6 @@
 import XCTest
 import UIKit
-@testable import Confabula
+@testable import BrainNotes
 
 final class TextSelectionTests: XCTestCase {
     @MainActor

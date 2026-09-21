@@ -1,6 +1,6 @@
 import XCTest
 import SwiftData
-@testable import Confabula
+@testable import BrainNotes
 
 /// The engine's research round, end to end inside the process: a stubbed model
 /// asks for a web search, the stubbed web answers, and the persisted reply is
