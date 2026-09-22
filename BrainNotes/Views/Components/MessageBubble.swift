@@ -346,7 +346,7 @@ struct MessageBubble: View {
 
     /// The quoted message shown at the top of a reply.
     private var quoteStrip: some View {
-        let accent = message.replyToIsMine ? Theme.accentDeep : Theme.linkBlue
+        let accent = Theme.quoteAuthor(isMine: message.replyToIsMine, scheme: scheme)
         return HStack(spacing: 0) {
             Capsule()
                 .fill(accent)
@@ -368,7 +368,7 @@ struct MessageBubble: View {
         .padding(.horizontal, 5)
         .frame(maxWidth: 260, alignment: .leading)
         .background(Color.black.opacity(scheme == .dark ? 0.18 : 0.05),
-                    in: RoundedRectangle(cornerRadius: 5))
+                    in: RoundedRectangle(cornerRadius: 8))
     }
 
     // MARK: - Meta line

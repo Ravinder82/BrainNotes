@@ -43,7 +43,7 @@ struct CrewManifestCard: View {
             if let failure {
                 Text(failure)
                     .font(.system(size: 12.5))
-                    .foregroundStyle(.red)
+                    .foregroundStyle(Theme.danger)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 9)
             } else if !crewActions.isEmpty || !loneSpecialists.isEmpty {
@@ -57,11 +57,11 @@ struct CrewManifestCard: View {
                 }
             }
         }
-        .background(Theme.accent.opacity(scheme == .dark ? 0.10 : 0.07),
-                    in: RoundedRectangle(cornerRadius: 12))
+        .background(Theme.raised(scheme),
+                    in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Theme.accent.opacity(0.35), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Theme.hairline(scheme), lineWidth: 1)
         }
         // Keep the card's own identifier from leaking onto every child row:
         // `contain` makes the card a real accessibility container, so the
@@ -86,7 +86,7 @@ struct CrewManifestCard: View {
             Image(systemName: "helm")
                 .font(.system(size: 11, weight: .semibold))
         }
-        .foregroundStyle(Theme.accent)
+        .foregroundStyle(Theme.accentText(scheme))
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .accessibilityElement(children: .combine)
@@ -168,8 +168,9 @@ struct CrewManifestCard: View {
     }
 
     private var rowDivider: some View {
+        // Aligns to the text column: 12pt row inset + 30pt avatar + 10pt gap.
         Divider()
-            .padding(.leading, 46)
+            .padding(.leading, 52)
     }
 }
 

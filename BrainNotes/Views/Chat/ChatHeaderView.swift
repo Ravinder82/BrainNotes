@@ -16,6 +16,8 @@ struct ChatHeaderView: View {
     var statusText: String?
     var onTap: () -> Void
 
+    @Environment(\.colorScheme) private var scheme
+
     /// Short presence for the streaming bubble's stage, tuned for the
     /// one-line title slot.
     static func statusText(for progress: ChatEngine.StreamProgress?) -> String {
@@ -43,7 +45,8 @@ struct ChatHeaderView: View {
                         .foregroundStyle(.primary)
                     Text(subtitle)
                         .font(.system(size: 11.5))
-                        .foregroundStyle(isTyping ? Theme.accent : .secondary)
+                        .foregroundStyle(isTyping ? Theme.accentText(scheme)
+                                         : Theme.mutedText(scheme))
                         .contentTransition(.interpolate)
                         .animation(.easeOut(duration: 0.18), value: subtitle)
                 }

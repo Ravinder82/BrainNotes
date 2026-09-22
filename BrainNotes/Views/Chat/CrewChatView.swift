@@ -300,19 +300,30 @@ private struct CrewComposerView: View {
                     .padding(.vertical, ChatLayout.composerFieldPaddingV)
                     .background(Theme.composerField(scheme),
                                 in: RoundedRectangle(cornerRadius: ChatLayout.composerFieldCornerRadius))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: ChatLayout.composerFieldCornerRadius)
+                            .stroke(Theme.hairline(scheme), lineWidth: 1)
+                    )
                     .focused(focus)
                     .accessibilityIdentifier("crew-message-field")
                     .accessibilityLabel(Text("Message the crew"))
                 Button {
                     if isStreamingHere { onStop() } else { onSend() }
                 } label: {
-                    Image(systemName: isStreamingHere
-                          ? "stop.circle.fill" : "arrow.up.circle.fill")
-                        .font(.system(size: 30))
-                        .foregroundStyle(canSend && !isStreamingElsewhere
-                                         ? Theme.accent : Color.secondary.opacity(0.5))
-                        .frame(width: 34, height: 34)
-                        .contentShape(Rectangle())
+                    let enabled = isStreamingHere || (canSend && !isStreamingElsewhere)
+                    ZStack {
+                        Circle()
+                            .fill(enabled ? Theme.accentDeep : Theme.quietDisc(scheme))
+                        Circle()
+                            .strokeBorder(enabled ? Color.clear : Theme.hairline(scheme),
+                                          lineWidth: 1)
+                        Image(systemName: isStreamingHere ? "stop.fill" : "arrow.up")
+                            .font(.system(size: isStreamingHere ? 12 : 16, weight: .bold))
+                            .foregroundStyle(enabled ? Color.white
+                                             : Color.secondary.opacity(0.55))
+                    }
+                    .frame(width: 38, height: 38)
+                    .contentShape(Circle())
                 }
                 .disabled(isStreamingHere ? false : (!canSend || isStreamingElsewhere))
                 .accessibilityIdentifier("crew-send-button")
@@ -345,7 +356,7 @@ private struct CrewAvatarChip: View {
         .overlay(alignment: .bottomTrailing) {
             if working {
                 Circle()
-                    .fill(Theme.unreadBadge)
+                    .fill(Theme.live)
                     .frame(width: 9, height: 9)
                     .overlay(Circle().stroke(Color(.systemBackground), lineWidth: 1.2))
                     .offset(x: 1, y: 1)

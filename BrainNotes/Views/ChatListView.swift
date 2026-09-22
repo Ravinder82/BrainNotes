@@ -14,6 +14,7 @@ struct ChatListView: View {
         @Environment(ProviderStore.self) private var providers
         @Environment(ChatEngine.self) private var engine
         @Query private var crews: [Crew]
+        @Environment(\.colorScheme) private var scheme
 
         private var sortedCrews: [Crew] {
             crews.sorted { lhs, rhs in
@@ -101,29 +102,45 @@ struct ChatListView: View {
 
     private var captainCard: some View {
         Button(action: openCaptain) {
-            HStack(spacing: 12) {
-                Image(systemName: "helm")
-                    .font(.title2)
-                    .foregroundStyle(Theme.accent)
-                    .frame(width: 48, height: 48)
-                    .background(Theme.accent.opacity(0.12), in: Circle())
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Captain").font(.headline)
-                    Text("Chief of Staff").font(.subheadline)
+            HStack(spacing: 14) {
+                ZStack {
+                    Circle().fill(Theme.accentDeep)
+                    Image(systemName: "helm")
+                        .font(.system(size: 21, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+                .frame(width: 48, height: 48)
+                .overlay(
+                    Circle().strokeBorder(Theme.accent.opacity(0.20), lineWidth: 5)
+                )
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Captain")
+                        .font(.system(size: 17, weight: .semibold))
+                        .tracking(-0.2)
+                    Text("Chief of Staff")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Theme.accentText(scheme))
                     Text("Plan your next outcome")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Theme.mutedText(scheme))
+                        .padding(.top, 2)
                 }
                 Spacer()
                 Image(systemName: "chevron.right")
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.tertiary)
             }
             .foregroundStyle(.primary)
             .padding(16)
-            .background(Color(.secondarySystemBackground),
-                        in: RoundedRectangle(cornerRadius: 16))
+            .background(Theme.raised(scheme),
+                        in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .stroke(Theme.hairline(scheme), lineWidth: 1)
+            )
+            .shadow(color: Theme.cardShadow(scheme), radius: 10, y: 3)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressableCardStyle())
         .accessibilityIdentifier("captain-card")
         .padding(12)
     }
@@ -189,7 +206,7 @@ struct ChatListView: View {
                     } label: {
                         CrewCard(crew: crew, workingBotIDs: workingBotIDs)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(PressableCardStyle())
                     .contextMenu {
                         crewMenu(for: crew)
                     }
@@ -227,12 +244,12 @@ struct ChatListView: View {
                                systemImage: String) -> some View {
         HStack(spacing: 6) {
             Image(systemName: systemImage)
-                .font(.system(size: 10.5, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Theme.mutedText(scheme))
             Text("\(title) · \(count)")
-                .font(.system(size: 10.5, weight: .semibold))
-                .tracking(1.2)
-                .foregroundStyle(.secondary)
+                .font(.system(size: 11, weight: .semibold))
+                .tracking(0.9)
+                .foregroundStyle(Theme.mutedText(scheme))
             Spacer()
         }
         .textCase(nil)
@@ -247,10 +264,10 @@ struct ChatListView: View {
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: "key.fill")
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(.white)
                     .frame(width: 38, height: 38)
-                    .background(Theme.accent, in: Circle())
+                    .background(Theme.accentDeep, in: Circle())
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Add your AI API key")
                         .font(.subheadline.weight(.semibold))
@@ -266,10 +283,14 @@ struct ChatListView: View {
                     .foregroundStyle(.tertiary)
             }
             .padding(12)
-            .background(Color(.secondarySystemBackground),
-                        in: RoundedRectangle(cornerRadius: 12))
+            .background(Theme.raised(scheme),
+                        in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(Theme.hairline(scheme), lineWidth: 1)
+            )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressableCardStyle())
         .padding(.horizontal, 12)
         .padding(.top, 8)
     }
@@ -286,7 +307,7 @@ struct ChatListView: View {
                 Label("Talk to Captain", systemImage: "helm")
             }
             .buttonStyle(.borderedProminent)
-            .tint(Theme.accent)
+            .tint(Theme.accentDeep)
         }
     }
 

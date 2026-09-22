@@ -11,6 +11,7 @@
     --ink:#0B141A; --ink-2:#5B6B73;
     --teal:#00A884; --teal-deep:#008069; --teal-ink:#00705C;
     --hairline:#E4E0D9; --out:#D9FDD3; --field:#FFFFFF; --bar:#FFFFFF;
+    --wallpaper:#EFEAE2; --meta:#5B6B73;
     --live:#25D366; --danger:#C0392B; --banner:#F6F4F0;
     --shadow:0 1px 3px rgba(11,20,26,.08), 0 8px 24px rgba(11,20,26,.06);
     --frame-shadow:0 2px 6px rgba(11,20,26,.10), 0 24px 60px rgba(11,20,26,.14);
@@ -19,8 +20,9 @@
   }
   html[data-theme="dark"] {
     --paper:#0B141A; --surface:#18262E; --sunken:#131F26;
+    --wallpaper:#0B141A; --meta:rgba(255,255,255,0.75);
     --ink:#F2F5F6; --ink-2:#8FA3AD;
-    --hairline:#2A3942; --out:#0B5E4E; --field:#22333C; --bar:#18262E;
+    --hairline:#2A3942; --out:#005C4B; --field:#2A3942; --bar:#18262E;
     --banner:#131F26;
     --shadow:none; --frame-shadow:0 0 0 1px #2A3942, 0 24px 60px rgba(0,0,0,.5);
   }
@@ -189,7 +191,7 @@
   .banner .t2 { font-size:12px; color:var(--ink-2); margin-top:1px; }
 
   /* ---- Chat thread ---- */
-  .thread { flex:1; background:var(--sunken); padding:12px 12px 8px; display:flex; flex-direction:column; gap:4px; overflow:hidden; }
+  .thread { flex:1; background:var(--wallpaper); padding:12px 12px 8px; display:flex; flex-direction:column; gap:4px; overflow:hidden; }
   .datepill {
     align-self:center; background:var(--surface); border:1px solid var(--hairline); color:var(--ink-2);
     font-size:10.5px; font-weight:600; letter-spacing:.06em; padding:4px 10px; border-radius:var(--r-pill);
@@ -203,17 +205,17 @@
   }
   .bubble .tail { position:absolute; bottom:0; width:8px; height:8px; }
   .row.them .bubble { background:var(--surface); color:var(--ink); border-bottom-left-radius:4px; }
-  html[data-theme="dark"] .row.them .bubble { background:#1B2930; box-shadow:none; border:1px solid var(--hairline); }
+  html[data-theme="dark"] .row.them .bubble { background:#202C33; box-shadow:none; border:1px solid var(--hairline); }
   .row.me .bubble { background:var(--out); color:var(--ink); border-bottom-right-radius:4px; box-shadow:none; }
   .meta { display:flex; align-items:center; gap:3px; justify-content:flex-end; float:right;
-    margin:8px 0 -2px 10px; font-size:11px; font-weight:500; color:var(--ink-2); }
+    margin:8px 0 -2px 10px; font-size:11px; font-weight:500; color:var(--meta); }
 
   /* ---- Crew manifest card ---- */
   .manifest {
     background:var(--surface); border:1px solid var(--hairline); border-radius:var(--r-md);
     overflow:hidden; box-shadow:var(--shadow); max-width:82%; margin:4px 0;
   }
-  html[data-theme="dark"] .manifest { background:#1B2930; box-shadow:none; }
+  html[data-theme="dark"] .manifest { background:#202C33; box-shadow:none; }
   .manifest .mh {
     display:flex; align-items:center; gap:7px; padding:9px 12px; color:var(--teal-ink);
     font-size:11.5px; font-weight:600; letter-spacing:.02em; border-bottom:1px solid var(--hairline);
@@ -250,6 +252,8 @@
   html[data-theme="dark"] .reply .who { color:var(--teal); }
   .reply .prev { font-size:12px; color:var(--ink-2); margin-top:1px; white-space:nowrap; overflow:hidden;
     text-overflow:ellipsis; max-width:230px; }
+  .hdr-status { display:flex; align-items:center; gap:5px; font-size:11.5px; color:var(--teal-ink); }
+  html[data-theme="dark"] .hdr-status { color:var(--teal); }
   .comp-row { display:flex; align-items:flex-end; gap:8px; }
   .disc-quiet {
     width:36px; height:36px; flex:none; border-radius:var(--r-pill); background:var(--banner);
@@ -287,7 +291,7 @@
   .btn.primary { background:var(--teal-deep); color:#fff; }
   .btn.primary:hover { background:var(--teal-ink); }
   .btn.quiet { background:var(--banner); color:var(--ink); border-color:var(--hairline); }
-  .btn:disabled { opacity:.4; }
+  .btn:disabled { background:var(--banner); color:var(--ink-2); border-color:var(--hairline); cursor:default; }
 
   /* ============ WHAT CHANGED ============ */
   .changes { display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:8px 28px; }
@@ -475,7 +479,7 @@
               <span class="emoji-disc" style="--tint:#008069;width:32px;height:32px;border-radius:11px;font-size:16px">🧭</span>
               <span style="text-align:left">
                 <span style="display:block;font-size:15.5px;font-weight:600;letter-spacing:-.01em">Captain</span>
-                <span style="display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--teal-ink)">
+                <span class="hdr-status">
                   <span style="width:6px;height:6px;border-radius:50%;background:var(--live);display:inline-block"></span>
                   writing · 1,204 chars
                 </span>
@@ -581,7 +585,7 @@
           <button class="btn quiet">Crew details</button>
           <button class="btn primary" disabled>Send</button>
         </div>
-        <div class="lab-note">One high-emphasis action per surface. Disabled = 40% opacity, never a new hue.</div>
+        <div class="lab-note">One high-emphasis action per surface. Disabled = quiet fill + muted glyph, never a new hue.</div>
       </div>
 
       <div class="lab-card">

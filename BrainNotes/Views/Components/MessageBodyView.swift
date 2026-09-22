@@ -29,7 +29,9 @@ struct MessageBodyView: View {
     }
 
     private func attributed(_ text: String) -> AttributedString {
-        guard let messageID else { return MessageTextBuilder.linkified(text) }
-        return MessageTextCache.shared.plain(for: messageID, text: text)
+        guard let messageID else {
+            return MessageTextBuilder.linkified(text, scheme: scheme)
+        }
+        return MessageTextCache.shared.plain(for: messageID, text: text, scheme: scheme)
     }
 }

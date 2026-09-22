@@ -108,6 +108,6 @@ enum MarkdownTheme {
     }
 
     static func listMarkerColor(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? Theme.accent.opacity(0.9) : Theme.accentDeep
+        scheme == .dark ? Theme.accentMint : Theme.accentInk
     }
 }

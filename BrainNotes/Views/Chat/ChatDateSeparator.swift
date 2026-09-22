@@ -9,7 +9,7 @@ struct ChatDateSeparator: View {
     var body: some View {
         Text(text)
             .font(.system(size: 12, weight: .medium))
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Theme.mutedText(scheme))
             .padding(.horizontal, 12)
             .padding(.vertical, 4)
             .background(Theme.datePill(scheme), in: Capsule())

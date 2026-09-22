@@ -91,6 +91,7 @@ struct CrewCard: View {
             RoundedRectangle(cornerRadius: metrics.cornerRadius)
                 .stroke(borderColor, lineWidth: 1)
         )
+        .shadow(color: Theme.cardShadow(scheme), radius: 10, y: 3)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
         .accessibilityHint(Text("Opens the crew"))
@@ -113,14 +114,13 @@ struct CrewCard: View {
             // (WWDC25: nested containers should share a corner family).
             RoundedRectangle(cornerRadius: metrics.avatarSize * 0.28,
                              style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [tint.opacity(0.95), tint.opacity(0.65)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .fill(tint.opacity(scheme == .dark ? 0.32 : 0.16))
                 .frame(width: metrics.avatarSize, height: metrics.avatarSize)
+                .overlay(
+                    RoundedRectangle(cornerRadius: metrics.avatarSize * 0.28,
+                                     style: .continuous)
+                        .stroke(tint.opacity(0.55), lineWidth: 1.5)
+                )
             Text(crew.emoji)
                 .font(.system(size: metrics.avatarSize * 0.52))
         }
@@ -132,7 +132,7 @@ struct CrewCard: View {
                 .font(.system(size: 9, weight: .bold))
                 .foregroundStyle(.white)
                 .padding(3)
-                .background(Theme.unreadBadge, in: Circle())
+                .background(Theme.accentDeep, in: Circle())
                 .overlay(Circle().stroke(cardBackground, lineWidth: 1.5))
                 .offset(x: 2, y: 2)
         }
@@ -157,24 +157,27 @@ struct CrewCard: View {
         return HStack(spacing: 4) {
             if isLive {
                 Circle()
-                    .fill(tint)
+                    .fill(Theme.live)
                     .frame(width: 6, height: 6)
             } else {
                 Image(systemName: "moon.zzz.fill")
                     .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.mutedText(scheme))
             }
             Text(label)
                 .font(.system(size: 10.5, weight: .semibold))
                 .tracking(0.2)
-                .foregroundStyle(isLive ? tint : .secondary)
+                .foregroundStyle(isLive ? Color.white : Theme.mutedText(scheme))
                 .lineLimit(1)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
         .frame(height: 22)
         .background(
-            (isLive ? tint.opacity(0.14) : Color(.tertiarySystemFill)),
+            (isLive
+                ? Theme.accentDeep
+                : (scheme == .dark ? Color.white.opacity(0.08)
+                                   : Color(hex: "EFEAE2"))),
             in: Capsule()
         )
         .accessibilityHidden(true)
@@ -232,7 +235,7 @@ struct CrewCard: View {
             .overlay(alignment: .bottomTrailing) {
                 if workingBotIDs.contains(bot.id) {
                     Circle()
-                        .fill(Theme.unreadBadge)
+                        .fill(Theme.live)
                         .frame(width: 7, height: 7)
                         .overlay(Circle().stroke(cardBackground, lineWidth: 1.2))
                         .offset(x: 1, y: 1)
@@ -272,14 +275,11 @@ struct CrewCard: View {
     /// The card's fill. Light mode lifts off the wallpaper; dark mode sinks
     /// slightly so the border can do the work.
     private var cardBackground: Color {
-        scheme == .dark
-            ? Color(.secondarySystemBackground)
-            : Color(.systemBackground)
+        Theme.raised(scheme)
     }
 
     private var borderColor: Color {
-        let alpha: Double = scheme == .dark ? 0.18 : 0.12
-        return tint.opacity(alpha)
+        Theme.hairline(scheme)
     }
 
     // MARK: - Accessibility

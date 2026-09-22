@@ -9,10 +9,10 @@ enum ChatLayout {
 
     // MARK: - Bubbles
 
-    static let bubbleCornerRadius: CGFloat = 8
+    static let bubbleCornerRadius: CGFloat = 14
     /// Tail sits in the bottom corner on the sender's side.
-    static let tailWidth: CGFloat = 7
-    static let tailHeight: CGFloat = 7
+    static let tailWidth: CGFloat = 8
+    static let tailHeight: CGFloat = 8
 
     static let bubblePaddingH: CGFloat = 9
     static let bubblePaddingV: CGFloat = 6
@@ -55,7 +55,9 @@ enum ChatLayout {
 
     static let composerPaddingH: CGFloat = 10
     static let composerPaddingV: CGFloat = 8
-    static let composerFieldCornerRadius: CGFloat = 18
+    /// Capsule at single-line height (SwiftUI clamps the radius to half the
+    /// field), and a soft 22pt lozenge as the field grows to six lines.
+    static let composerFieldCornerRadius: CGFloat = 22
     static let composerFieldPaddingH: CGFloat = 12
     static let composerFieldPaddingV: CGFloat = 8
     static let composerLineLimit = 1...6

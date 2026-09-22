@@ -26,7 +26,7 @@ struct BotAvatar: View {
         .overlay(alignment: .bottomTrailing) {
             // Presence dot, always "online" for bots.
             Circle()
-                .fill(Theme.unreadBadge)
+                .fill(Theme.live)
                 .frame(width: size * 0.24, height: size * 0.24)
                 .overlay(Circle().stroke(Color(.systemBackground), lineWidth: 2))
                 .offset(x: 1, y: 1)

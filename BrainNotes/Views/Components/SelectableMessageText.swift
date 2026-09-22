@@ -26,7 +26,7 @@ enum MessageDocumentBuilder {
                       scheme: ColorScheme) -> NSAttributedString {
         switch analysis {
         case .plain(let text):
-            return plain(text)
+            return plain(text, scheme: scheme)
         case .rich(let blocks):
             return rich(blocks, scheme: scheme)
         }
@@ -46,7 +46,8 @@ enum MessageDocumentBuilder {
 
     // MARK: Plain prose
 
-    private static func plain(_ text: String) -> NSAttributedString {
+    private static func plain(_ text: String,
+                              scheme: ColorScheme) -> NSAttributedString {
         let source = text.isEmpty ? " " : text
         let output = NSMutableAttributedString(string: source)
         apply(bodyParagraph(), to: output)
@@ -59,7 +60,7 @@ enum MessageDocumentBuilder {
             else { continue }
             output.addAttribute(.link, value: link.url, range: range)
             output.addAttribute(.foregroundColor,
-                                value: UIColor(Theme.linkBlue), range: range)
+                                value: UIColor(Theme.linkText(scheme)), range: range)
             output.addAttribute(.underlineStyle,
                                 value: NSUnderlineStyle.single.rawValue,
                                 range: range)
@@ -456,7 +457,7 @@ extension MessageDocumentBuilder {
         case .strike(let string):
             return RunStyle(text: string,
                             font: .systemFont(ofSize: size),
-                            color: .secondaryLabel,
+                            color: UIColor(Theme.mutedText(scheme)),
                             extra: [(.strikethroughStyle,
                                      NSUnderlineStyle.single.rawValue)])
 
@@ -469,7 +470,7 @@ extension MessageDocumentBuilder {
             }
             return RunStyle(text: text,
                             font: .systemFont(ofSize: size),
-                            color: UIColor(Theme.linkBlue),
+                            color: UIColor(Theme.linkText(scheme)),
                             extra: extra)
         }
     }

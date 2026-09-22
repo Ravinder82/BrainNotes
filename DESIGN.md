@@ -15,10 +15,10 @@ colors:
   surface-dark-raised: "#18262E"
   bubble-incoming: "#FFFFFF"
   bubble-outgoing: "#D9FDD3"
-  bubble-incoming-dark: "#1B2930"
-  bubble-outgoing-dark: "#0B5E4E"
+  bubble-incoming-dark: "#202C33"
+  bubble-outgoing-dark: "#005C4B"
   composer-field: "#FFFFFF"
-  composer-field-dark: "#22333C"
+  composer-field-dark: "#2A3942"
   live: "#25D366"
   danger: "#C0392B"
 typography:

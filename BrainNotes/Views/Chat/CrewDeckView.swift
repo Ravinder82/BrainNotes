@@ -20,6 +20,7 @@ struct CrewDeckView: View {
     let engine: ChatEngine
 
     @Query private var crews: [Crew]
+    @Environment(\.colorScheme) private var scheme
 
     private var sortedCrews: [Crew] {
         crews.sorted { $0.lastActivityAt > $1.lastActivityAt }
@@ -48,23 +49,23 @@ struct CrewDeckView: View {
     private var header: some View {
         HStack(spacing: 6) {
             Image(systemName: "person.3.sequence.fill")
-                .font(.system(size: 10.5, weight: .semibold))
-                .foregroundStyle(Theme.accent)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Theme.mutedText(scheme))
             Text("CREWS · \(sortedCrews.count)")
-                .font(.system(size: 10.5, weight: .semibold))
-                .tracking(1.2)
-                .foregroundStyle(.secondary)
+                .font(.system(size: 11, weight: .semibold))
+                .tracking(0.9)
+                .foregroundStyle(Theme.mutedText(scheme))
             Spacer(minLength: 6)
             if workingCount > 0 {
                 HStack(spacing: 4) {
                     Circle()
-                        .fill(Theme.accent)
+                        .fill(Theme.live)
                         .frame(width: 5, height: 5)
                     Text(workingCount == 1
                          ? "1 working"
                          : "\(workingCount) working")
-                        .font(.system(size: 10.5, weight: .medium))
-                        .foregroundStyle(Theme.accent)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Theme.accentText(scheme))
                 }
                 .transition(.opacity)
             }

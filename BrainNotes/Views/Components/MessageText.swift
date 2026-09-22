@@ -33,14 +33,14 @@ enum MessageTextBuilder {
     /// SwiftUI's `Text` does not linkify on its own, so URLs are detected and
     /// tagged explicitly. The detector scan is skipped entirely unless the text
     /// contains a character a link could plausibly need.
-    static func linkified(_ text: String) -> AttributedString {
+    static func linkified(_ text: String, scheme: ColorScheme) -> AttributedString {
         let source = text.isEmpty ? " " : text
         guard LinkDetector.mightContainLink(source) else {
             return AttributedString(source)
         }
 
         let attributed = NSMutableAttributedString(string: source)
-        let linkColor = UIColor(Theme.linkBlue)
+        let linkColor = UIColor(Theme.linkText(scheme))
         let length = attributed.length
         for link in LinkDetector.links(in: source) {
             let range = link.range
@@ -86,13 +86,13 @@ enum MessageTextBuilder {
             case .strike(let string):
                 var span = AttributedString(string)
                 span.strikethroughStyle = .single
-                span.foregroundColor = .secondary
+                span.foregroundColor = Theme.mutedText(scheme)
                 output.append(span)
 
             case .link(let text, let urlString):
                 var span = AttributedString(text)
                 if let url = URL(string: urlString) { span.link = url }
-                span.foregroundColor = Theme.linkBlue
+                span.foregroundColor = Theme.linkText(scheme)
                 span.underlineStyle = .single
                 output.append(span)
             }
@@ -138,10 +138,11 @@ final class MessageTextCache {
     }
 
     /// Plain body for a finished message.
-    func plain(for id: UUID, text: String) -> AttributedString {
-        let key = "\(id.uuidString)|plain|\(text.hashValue)" as NSString
+    func plain(for id: UUID, text: String, scheme: ColorScheme) -> AttributedString {
+        let mode = scheme == .dark ? "d" : "l"
+        let key = "\(id.uuidString)|plain|\(mode)|\(text.hashValue)" as NSString
         if let hit = cache.object(forKey: key), let value = hit.value { return value }
-        let built = MessageTextBuilder.linkified(text)
+        let built = MessageTextBuilder.linkified(text, scheme: scheme)
         cache.setObject(Box(built), forKey: key)
         return built
     }

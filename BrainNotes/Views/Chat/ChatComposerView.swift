@@ -78,12 +78,19 @@ struct ChatComposerView: View {
                 Label("Remove Background", systemImage: "crop")
             }
         } label: {
-            Image(systemName: "plus")
-                .font(.system(size: 20, weight: .medium))
-                .foregroundStyle(canAttach ? Theme.accent : Color.secondary.opacity(0.5))
-                .frame(width: 30, height: 34)
-                .contentShape(Rectangle())
-        }
+     ZStack {
+         if canAttach {
+             Circle().fill(Theme.quietDisc(scheme))
+             Circle().strokeBorder(Theme.hairline(scheme), lineWidth: 1)
+         }
+         Image(systemName: "plus")
+             .font(.system(size: 16, weight: .semibold))
+             .foregroundStyle(canAttach ? Theme.accentText(scheme)
+                              : Color.secondary.opacity(0.5))
+     }
+     .frame(width: 44, height: 44)
+     .contentShape(Circle())
+ }
         .disabled(!canAttach || isStreamingHere)
         .opacity(isStreamingHere ? 0.4 : 1)
         .accessibilityIdentifier("attach-button")
@@ -99,6 +106,10 @@ struct ChatComposerView: View {
             .padding(.vertical, ChatLayout.composerFieldPaddingV)
             .background(Theme.composerField(scheme),
                         in: RoundedRectangle(cornerRadius: ChatLayout.composerFieldCornerRadius))
+            .overlay(
+                RoundedRectangle(cornerRadius: ChatLayout.composerFieldCornerRadius)
+                    .stroke(Theme.hairline(scheme), lineWidth: 1)
+            )
             .focused(focus)
             .accessibilityIdentifier("message-field")
             .accessibilityLabel(Text("Message"))
@@ -114,16 +125,29 @@ struct ChatComposerView: View {
                 onSend()
             }
         } label: {
-            Image(systemName: isStreamingHere ? "stop.circle.fill" : "arrow.up.circle.fill")
-                .font(.system(size: 30))
-                .foregroundStyle(canSend && !isStreamingElsewhere
-                                 ? Theme.accent : Color.secondary.opacity(0.5))
-                .frame(width: 34, height: 34)
-                .contentShape(Rectangle())
+            ZStack {
+                Circle()
+                    .fill(isEnabledSend ? Theme.accentDeep : Theme.quietDisc(scheme))
+                Circle()
+                    .strokeBorder(isEnabledSend ? Color.clear : Theme.hairline(scheme),
+                                  lineWidth: 1)
+                Image(systemName: isStreamingHere ? "stop.fill" : "arrow.up")
+                    .font(.system(size: isStreamingHere ? 12 : 16, weight: .bold))
+                    .foregroundStyle(isEnabledSend ? Color.white
+                                     : Color.secondary.opacity(0.55))
+            }
+            .frame(width: 38, height: 38)
+            .contentShape(Circle())
         }
         .disabled(isStreamingHere ? false : (!canSend || isStreamingElsewhere))
         .accessibilityLabel(Text(isStreamingHere ? "Stop" : "Send"))
         .accessibilityIdentifier("send-button")
+    }
+
+    /// The button's live colour state: streaming always offers Stop; otherwise
+    /// send needs text (or an attachment) and no other thread streaming.
+    private var isEnabledSend: Bool {
+        isStreamingHere || (canSend && !isStreamingElsewhere)
     }
 }
 
@@ -133,8 +157,10 @@ private struct ReplyPreviewRow: View {
     let target: Message
     var onCancel: () -> Void
 
+    @Environment(\.colorScheme) private var scheme
+
     private var accent: Color {
-        target.isFromMe ? Theme.accentDeep : Theme.linkBlue
+        target.isFromMe ? Theme.accentText(scheme) : Theme.linkText(scheme)
     }
 
     var body: some View {
@@ -165,9 +191,16 @@ private struct ReplyPreviewRow: View {
             .buttonStyle(.plain)
             .accessibilityLabel(Text("Cancel reply"))
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(Color(.secondarySystemBackground))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(Theme.raised(scheme),
+                    in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Theme.hairline(scheme), lineWidth: 1)
+        )
+        .padding(.horizontal, ChatLayout.composerPaddingH)
+        .padding(.bottom, 6)
         .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 }
@@ -176,6 +209,8 @@ private struct ReplyPreviewRow: View {
 private struct AttachmentPreviewRow: View {
     let attachment: MessageAttachment
     var onRemove: () -> Void
+
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         HStack(spacing: 12) {
@@ -208,9 +243,16 @@ private struct AttachmentPreviewRow: View {
             .buttonStyle(.plain)
             .accessibilityLabel(Text("Remove attachment"))
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(Color(.secondarySystemBackground))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(Theme.raised(scheme),
+                    in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Theme.hairline(scheme), lineWidth: 1)
+        )
+        .padding(.horizontal, ChatLayout.composerPaddingH)
+        .padding(.bottom, 6)
         .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 }

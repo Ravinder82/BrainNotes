@@ -12,21 +12,37 @@ enum Theme {
 
     static let accent = Color(hex: "00A884")
     static let accentHex = "00A884"
+    /// The accessible teal: white text on `accent` is only 3.03:1, on this
+    /// it is 4.89:1, so every white-on-teal surface uses this instead.
     static let accentDeep = Color(hex: "008069")
-    static let linkBlue = Color(hex: "027EB5")
+    /// Accent as ink on light surfaces (icons, small labels): 5.4:1 on paper.
+    static let accentInk = Color(hex: "00705C")
+    /// Pressed / gradient-end teal; still clears AA behind white.
+    static let accentDark = Color(hex: "006957")
+    /// Bright teal for dark-mode markers over dark bubbles.
+    static let accentMint = Color(hex: "5FD6B8")
+    /// Link blue, AA on light fills (was 027EB5 at 4.31:1).
+    static let linkBlue = Color(hex: "026C9C")
     static let tickBlue = Color(hex: "53BDEB")
+    /// Counts of unread messages.
     static let unreadBadge = Color(hex: "25D366")
+    /// "Working now" / online signal — a different state from unread, so it
+    /// gets its own token instead of sharing the badge green.
+    static let live = Color(hex: "25D366")
+    static let danger = Color(hex: "C0392B")
+    /// Secondary text that must pass AA where `.secondary` does not.
+    static let secondaryText = Color(hex: "5B6B73")
 
     // Light surfaces
     static let chatBackgroundLight = Color(hex: "EFEAE2")
-    static let barLight = Color(hex: "F7F7F7")
+    static let barLight = Color(hex: "FFFFFF")
     static let incomingLight = Color(hex: "FFFFFF")
     static let outgoingLight = Color(hex: "D9FDD3")
     static let composerFieldLight = Color(hex: "FFFFFF")
 
     // Dark surfaces
     static let chatBackgroundDark = Color(hex: "0B141A")
-    static let barDark = Color(hex: "1F2C34")
+    static let barDark = Color(hex: "18262E")
     static let incomingDark = Color(hex: "202C33")
     static let outgoingDark = Color(hex: "005C4B")
     static let composerFieldDark = Color(hex: "2A3942")
@@ -80,7 +96,57 @@ enum Theme {
     /// `.secondary`, which is tuned for the app background and reads too light
     /// on a coloured bubble.
     static func bubbleMeta(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color.white.opacity(0.60) : Color.black.opacity(0.45)
+        mutedText(scheme)
+    }
+
+    // MARK: - Bridge tokens (DESIGN.md — "BrainNotes Bridge")
+
+    /// Raised card surface: white on light, the dark hull value on dark.
+    static func raised(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? Color(hex: "18262E") : .white
+    }
+
+    /// 1pt card and input separator. Depth in dark mode is carried by this
+    /// line, never by a shadow.
+    static func hairline(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? Color(hex: "2A3942") : Color(hex: "E4E0D9")
+    }
+
+    /// Quiet disc behind secondary glyphs (+, menu, chevrons on cards).
+    static func quietDisc(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? Color(hex: "131F26") : Color(hex: "F6F4F0")
+    }
+
+    /// Accent used as text or glyph on a surface. Bright accent fails AA on
+    /// light backgrounds, so light mode gets the darker ink teal.
+    static func accentText(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? accent : accentInk
+    }
+
+    /// Link colour inside messages and reply strips, per mode: one value
+    /// cannot pass AA on both a white and a navy bubble.
+    static func linkText(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? tickBlue : linkBlue
+    }
+
+    /// Author colour on a quote strip: my side is teal, theirs is link blue,
+    /// with dark mode flipping to brighter values over the dark bubbles.
+    static func quoteAuthor(isMine: Bool, scheme: ColorScheme) -> Color {
+        if scheme == .dark {
+            return isMine ? Color.white.opacity(0.95) : tickBlue
+        }
+        return isMine ? accentInk : linkBlue
+    }
+
+    /// Soft card elevation — light only. Dark depth is the hairline.
+    static func cardShadow(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? .clear : .black.opacity(0.10)
+    }
+
+    /// Secondary text on coloured fills: meta on bubbles, idle pills, date
+    /// separators, overlines on bars. Passes AA on every fill it lands on.
+    static func mutedText(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? Color.white.opacity(0.75) : secondaryText
     }
 
     /// Body text inside a bubble. `.primary` adapts per mode, and both bubble
@@ -109,6 +175,17 @@ enum Theme {
         "🧑‍🏫", "🧑‍⚕️", "🧑‍🚀", "🕵️", "🎨", "📚", "⚡️", "🌙", "🍀", "🔥",
         "💡", "🎯", "🧘", "🎬", "🎵", "🏋️", "✈️", "🧾", "🛠️", "🗂️",
     ]
+}
+
+/// Tap feedback for the large tappable cards: a card that never moves feels
+/// dead on iOS. Renders its label unchanged, so it can stand in for `.plain`.
+struct PressableCardStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .opacity(configuration.isPressed ? 0.92 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
 }
 
 extension Color {

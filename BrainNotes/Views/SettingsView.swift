@@ -245,7 +245,7 @@ struct ProviderAvatar: View {
                 .fill(
                     LinearGradient(
                         colors: isActive
-                            ? [Theme.accent, Theme.accentDeep]
+                            ? [Theme.accentDeep, Theme.accentDark]
                             : [Color(.systemGray3), Color(.systemGray2)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing

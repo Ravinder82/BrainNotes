@@ -166,7 +166,7 @@ struct WebToolsSettingsView: View {
     private func providerTile(_ id: WebProviderID, isActive: Bool) -> some View {
         RoundedRectangle(cornerRadius: 13, style: .continuous)
             .fill(LinearGradient(
-                colors: isActive ? [Theme.accent, Theme.accentDeep]
+                colors: isActive ? [Theme.accentDeep, Theme.accentDark]
                                  : [Color(.systemGray3), Color(.systemGray2)],
                 startPoint: .topLeading, endPoint: .bottomTrailing))
             .frame(width: 46, height: 46)
