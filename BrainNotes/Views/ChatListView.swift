@@ -1,30 +1,19 @@
 import SwiftUI
 import SwiftData
 
-/// The main screen: a searchable list of bot conversations and Captain's
-/// assembled crews, sorted with pinned items first and then by most recent
-/// activity, exactly like a messenger's chat list.
+/// The main screen: a searchable list of crew group chats plus a Captain
+/// card for management.
 ///
-/// Crews take the featured rail — one `CrewCard` per crew — so the user can
-/// scan who is on what and tap straight into the crew detail. Lone bots
-/// (user-created or one-off specialists) live in the regular list below.
-    struct ChatListView: View {
+/// The dashboard no longer surfaces individual bots — Captain owns the roster
+/// and only emits operators as members of a crew, so a specialist always
+/// belongs to a team. Tapping a crew card opens the shared group chat; the
+/// roster view (`CrewDetailView`) is reachable from the card's context menu
+/// for the user who wants to read each member's role before driving them.
+struct ChatListView: View {
         @Environment(\.modelContext) private var context
         @Environment(ProviderStore.self) private var providers
         @Environment(ChatEngine.self) private var engine
-        @Query private var bots: [Bot]
         @Query private var crews: [Crew]
-
-        private var sortedBots: [Bot] {
-            bots.filter { $0.id != CaptainProfile.id }.sorted { lhs, rhs in
-                // Pinned bots come first
-                if lhs.isPinned != rhs.isPinned {
-                    return lhs.isPinned && !rhs.isPinned
-                }
-                // Then sort by lastActivityAt descending
-                return lhs.lastActivityAt > rhs.lastActivityAt
-            }
-        }
 
         private var sortedCrews: [Crew] {
             crews.sorted { lhs, rhs in
@@ -45,35 +34,21 @@ import SwiftData
         @State private var openCrew: Crew?
         @State private var search = ""
         @State private var showSettings = false
-        @State private var showEditor = false
-        @State private var editingBot: Bot?
-        @State private var pendingDelete: Bot?
-        @State private var showDeleteConfirm = false
         @State private var pendingDeleteCrew: Crew?
         @State private var showDeleteCrewConfirm = false
 
-    private var filteredBots: [Bot] {
-        let q = search.trimmingCharacters(in: .whitespaces).lowercased()
-        guard !q.isEmpty else { return sortedBots }
-        return sortedBots.filter {
-            $0.name.lowercased().contains(q)
-                || $0.role.lowercased().contains(q)
-                || $0.systemPersonality.lowercased().contains(q)
+        private var filteredCrews: [Crew] {
+            let q = search.trimmingCharacters(in: .whitespaces).lowercased()
+            guard !q.isEmpty else { return sortedCrews }
+            return sortedCrews.filter {
+                $0.name.lowercased().contains(q)
+                    || $0.mission.lowercased().contains(q)
+            }
         }
-    }
 
-    private var filteredCrews: [Crew] {
-        let q = search.trimmingCharacters(in: .whitespaces).lowercased()
-        guard !q.isEmpty else { return sortedCrews }
-        return sortedCrews.filter {
-            $0.name.lowercased().contains(q)
-                || $0.mission.lowercased().contains(q)
+        private var isEmpty: Bool {
+            sortedCrews.isEmpty
         }
-    }
-
-    private var isEmpty: Bool {
-        sortedBots.isEmpty && sortedCrews.isEmpty
-    }
 
     var body: some View {
         NavigationStack {
@@ -89,7 +64,7 @@ import SwiftData
                 ChatView(bot: bot)
             }
             .navigationDestination(item: $openCrew) { crew in
-                CrewDetailView(crew: crew)
+                CrewChatView(crew: crew)
             }
             .alert("Couldn’t open Captain", isPresented: Binding(
                 get: { captainError != nil },
@@ -102,25 +77,9 @@ import SwiftData
             .navigationTitle("BrainNotes")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbar }
-            .searchable(text: $search, prompt: "Search bots and crews")
+            .searchable(text: $search, prompt: "Search crews")
             .sheet(isPresented: $showSettings) {
                 SettingsRootView()
-            }
-            .sheet(isPresented: $showEditor, onDismiss: { editingBot = nil }) {
-                BotEditorView(bot: editingBot)
-            }
-            .confirmationDialog(
-                pendingDelete.map { "Delete \($0.name)?" } ?? "Delete bot?",
-                isPresented: $showDeleteConfirm,
-                titleVisibility: .visible
-            ) {
-                Button("Delete", role: .destructive) {
-                    if let b = pendingDelete { delete(b) }
-                    pendingDelete = nil
-                }
-                Button("Cancel", role: .cancel) { pendingDelete = nil }
-            } message: {
-                Text("This permanently removes the bot and its entire chat history.")
             }
             .confirmationDialog(
                 pendingDeleteCrew.map { "Disband \($0.name)?" } ?? "Disband crew?",
@@ -213,63 +172,20 @@ import SwiftData
                                   systemImage: "person.3.sequence.fill")
                 }
             }
-
-            Section {
-                ForEach(filteredBots) { bot in
-                    NavigationLink {
-                        ChatView(bot: bot)
-                    } label: {
-                        BotRow(bot: bot)
-                    }
-                    .listRowInsets(EdgeInsets(top: 6, leading: 12,
-                                              bottom: 6, trailing: 12))
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button(role: .destructive) {
-                            pendingDelete = bot
-                            showDeleteConfirm = true
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
-                        Button {
-                            bot.isPinned.toggle()
-                            try? context.save()
-                        } label: {
-                            Label(bot.isPinned ? "Unpin" : "Pin",
-                                  systemImage: bot.isPinned ? "pin.slash" : "pin")
-                        }
-                        .tint(.orange)
-                    }
-                    .swipeActions(edge: .leading) {
-                        Button {
-                            editingBot = bot
-                            showEditor = true
-                        } label: {
-                            Label("Edit", systemImage: "pencil")
-                        }
-                        .tint(.blue)
-                    }
-                }
-            } header: {
-                if !filteredCrews.isEmpty {
-                    sectionHeader(title: "BOTS",
-                                                count: filteredBots.count,
-                                                systemImage: "bubble.left.and.bubble.right.fill")
-                }
-            }
         }
         .listStyle(.plain)
     }
 
-    /// Horizontal rail of crew cards. Two cards per row on iPhone portrait
-    /// thanks to the `CrewCard`'s 180 pt width and 16 pt outer padding.
-    /// Each card is its own navigation destination so tapping straight into
-    /// the crew detail is one gesture.
+    /// Horizontal rail of crew cards. Tapping a card opens the crew's shared
+    /// group chat — Captain's primary unit of work is the crew, so the
+    /// dashboard jump straight into the surface where the work actually
+    /// happens. The detail screen is reachable from the card's context menu.
     private var crewRail: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(alignment: .top, spacing: 14) {
                 ForEach(filteredCrews) { crew in
                     NavigationLink {
-                        CrewDetailView(crew: crew)
+                        CrewChatView(crew: crew)
                     } label: {
                         CrewCard(crew: crew, workingBotIDs: workingBotIDs)
                     }
@@ -292,6 +208,11 @@ import SwiftData
         } label: {
             Label(crew.isPinned ? "Unpin" : "Pin",
                   systemImage: crew.isPinned ? "pin.slash" : "pin")
+        }
+        NavigationLink {
+            CrewDetailView(crew: crew)
+        } label: {
+            Label("Crew details", systemImage: "person.2.crop.square")
         }
         Button(role: .destructive) {
             pendingDeleteCrew = crew
@@ -357,7 +278,7 @@ import SwiftData
         ContentUnavailableView {
             Label("No crews yet", systemImage: "person.3.sequence.fill")
         } description: {
-            Text("Open Captain and ask for a team, or create a bot to start a private conversation.")
+            Text("Open Captain and tell him the outcome you need. He'll assemble a crew you can work with.")
         } actions: {
             Button {
                 openCaptain()
@@ -366,13 +287,6 @@ import SwiftData
             }
             .buttonStyle(.borderedProminent)
             .tint(Theme.accent)
-            Button {
-                editingBot = nil
-                showEditor = true
-            } label: {
-                Label("Create a bot", systemImage: "plus")
-            }
-            .buttonStyle(.bordered)
         }
     }
 
@@ -387,20 +301,6 @@ import SwiftData
             .accessibilityIdentifier("settings-button")
             .accessibilityLabel("Settings")
         }
-        ToolbarItem(placement: .topBarTrailing) {
-            Button {
-                editingBot = nil
-                showEditor = true
-            } label: {
-                Image(systemName: "plus.circle.fill")
-            }
-            .accessibilityLabel("New bot")
-        }
-    }
-
-    private func delete(_ bot: Bot) {
-        context.delete(bot)
-        try? context.save()
     }
 
     private func delete(_ crew: Crew) {
@@ -408,81 +308,5 @@ import SwiftData
         // keeps the specialists — they may belong to other crews.
         context.delete(crew)
         try? context.save()
-    }
-}
-
-/// One chat-list row: avatar, name, last-message preview, timestamp, unread
-/// count and pin marker.
-struct BotRow: View {
-    let bot: Bot
-
-    var body: some View {
-        HStack(spacing: 12) {
-            BotAvatar(bot: bot)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(bot.name)
-                    .font(.system(size: 16.5, weight: .semibold))
-                    .lineLimit(1)
-                Text(preview)
-                    .font(.system(size: 14.5))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-
-            Spacer(minLength: 6)
-
-            VStack(alignment: .trailing, spacing: 5) {
-                Text(relativeTime)
-                    .font(.system(size: 12))
-                    .foregroundStyle(bot.unreadCount > 0 ? Theme.accent : .secondary)
-                HStack(spacing: 5) {
-                    if bot.isMuted {
-                        Image(systemName: "bell.slash.fill")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                    }
-                    if bot.isPinned {
-                        Image(systemName: "pin.fill")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                    }
-                    if bot.unreadCount > 0 {
-                        Text("\(bot.unreadCount)")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Theme.unreadBadge, in: Capsule())
-                    }
-                }
-            }
-        }
-        .contentShape(Rectangle())
-    }
-
-    private var preview: String {
-        guard let last = bot.lastMessage else {
-            if !bot.role.isEmpty { return bot.role }
-            return bot.systemPersonality.isEmpty ? "Tap to start chatting" : bot.systemPersonality
-        }
-        // Markup is stripped so the row reads as prose rather than showing raw
-        // `**` or link syntax. Memoised, because this runs per row per layout
-        // pass and the strip is a full markdown parse.
-        let body = MessagePreviewCache.shared.plain(from: last.text)
-            .replacingOccurrences(of: "\n", with: " ")
-        return last.isFromMe ? "You: \(body)" : body
-    }
-
-    private var relativeTime: String {
-        let cal = Calendar.current
-        let date = bot.lastActivityAt
-        if cal.isDateInToday(date) {
-            return date.formatted(date: .omitted, time: .shortened)
-        }
-        if cal.isDateInYesterday(date) { return "Yesterday" }
-        let days = cal.dateComponents([.day], from: date, to: Date()).day ?? 0
-        if days < 7 { return date.formatted(.dateTime.weekday(.abbreviated)) }
-        return date.formatted(.dateTime.day().month(.abbreviated))
     }
 }

@@ -30,6 +30,11 @@ final class ChatEngine {
     /// chat raised its alert — and offered Retry — in whichever thread the user
     /// had open next.
     private(set) var errorBotID: UUID?
+    /// Which crew's group chat the current error belongs to. The two error
+    /// scopes (`errorBotID` vs `errorCrewID`) never overlap: a per-bot error
+    /// clears the crew target, and vice versa, so an alert can never surface
+    /// in the wrong thread.
+    private(set) var errorCrewID: UUID?
 
     /// Live progress of the in-flight stream: who is answering, through which
     /// provider and model, which stage the reply is at, and how much has
@@ -440,17 +445,33 @@ final class ChatEngine {
     private func report(_ message: String?, for bot: Bot) {
         errorMessage = message ?? "Something went wrong."
         errorBotID = bot.id
+        errorCrewID = nil
+    }
+
+    /// Same, but scoped to a crew's group chat. The two scopes never overlap;
+    /// setting one clears the other so an alert can never surface in the wrong
+    /// thread.
+    private func report(_ message: String?, forCrew crew: Crew) {
+        errorMessage = message ?? "Something went wrong."
+        errorCrewID = crew.id
+        errorBotID = nil
     }
 
     /// Dismisses the current error. Called by the chat that owns it.
     func clearError() {
         errorMessage = nil
         errorBotID = nil
+        errorCrewID = nil
     }
 
     /// Whether the given bot is the one the current error belongs to.
     func hasError(for bot: Bot) -> Bool {
         errorMessage != nil && errorBotID == bot.id
+    }
+
+    /// Whether the given crew's group chat owns the current error.
+    func hasError(for crew: Crew) -> Bool {
+        errorMessage != nil && errorCrewID == crew.id
     }
 
     // MARK: - Prompt assembly
@@ -596,6 +617,153 @@ final class ChatEngine {
         bot.invalidateOrderCache()
         clearError()
         await send(text, to: bot, in: context)
+    }
+
+    // MARK: - Crew shared chat
+
+    /// Sends the user's text into a crew's shared group chat. The crew is
+    /// addressed as a unit, so the model picks the specialist who should reply
+    /// (the "lead"), streams their answer into `streamingText`, and persists
+    /// both messages with `crew = crew` so the thread survives a relaunch.
+    ///
+    /// Picking the lead is deliberately simple: the first idle member that
+    /// Captain ordered. If every member is busy, the first member is reused.
+    /// This matches what a human Chief of Staff would do — pass the work to
+    /// whoever has bandwidth — and avoids a fragile round-robin implementation
+    /// that would need each member's history window.
+    func send(
+        _ rawText: String,
+        to crew: Crew,
+        in context: ModelContext
+    ) async {
+        let text = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty, !isStreaming else { return }
+        guard let provider = providers.active,
+              !provider.baseURL.isEmpty else {
+            report(AIError.notConfigured.errorDescription, forCrew: crew)
+            return
+        }
+        guard let key = providers.activeAPIKey, !key.isEmpty else {
+            report(AIError.notConfigured.errorDescription, forCrew: crew)
+            return
+        }
+
+        let members = crew.orderedMembers
+        guard let lead = pickLead(in: members) else {
+            report("This crew has no specialists yet.", forCrew: crew)
+            return
+        }
+
+        let outgoing = Message(text: text, author: .me, delivery: .sending)
+        outgoing.crew = crew
+        context.insert(outgoing)
+        crew.lastActivityAt = Date()
+        try? context.save()
+        crew.invalidateOrderCache()
+
+        streamingText = ""
+        isStreaming = true
+        streamingBotID = lead.id
+        clearError()
+
+        let model = lead.model.isEmpty ? provider.defaultModel : lead.model
+        let configuration = compileBotSystemPrompt(bot: lead, webAccess: webAccessSection)
+        let turns = buildTurns(
+            for: crew, lead: lead, systemPrompt: configuration.systemPrompt,
+            pendingUser: text)
+
+        let client = OpenAIClient(baseURL: provider.baseURL, apiKey: key, session: session)
+        streamProgress = StreamProgress(
+            botID: lead.id, botName: lead.name, model: model,
+            providerLabel: provider.label,
+            startedAt: Date(), stage: .connecting,
+            receivedCharacters: 0, firstTokenAt: nil)
+
+        streamTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                let round = try await self.streamRound(
+                    client: client, model: model, turns: turns,
+                    temperature: configuration.temperature, paintPrefix: "")
+                var text = WebToolRequest.stripBlocks(round.text)
+                guard !Task.isCancelled else {
+                    outgoing.delivery = .sent
+                    try? context.save()
+                    self.endStream()
+                    return
+                }
+                guard !text.isEmpty else { throw AIError.empty }
+
+                let reply = Message(text: text, author: .bot, delivery: .delivered)
+                reply.crew = crew
+                reply.bot = lead
+                context.insert(reply)
+                outgoing.delivery = .read
+                lead.lastActivityAt = Date()
+                crew.lastActivityAt = Date()
+                try? context.save()
+                crew.invalidateOrderCache()
+                self.endStream()
+            } catch {
+                guard !Task.isCancelled else {
+                    outgoing.delivery = .sent
+                    try? context.save()
+                    self.endStream()
+                    return
+                }
+                outgoing.delivery = .failed
+                outgoing.failureReason = error.localizedDescription
+                self.report(error.localizedDescription, forCrew: crew)
+                try? context.save()
+                self.endStream()
+            }
+        }
+    }
+
+    /// Picks the lead for a crew turn: the first member not currently
+    /// streaming. Falls back to the first member so a fully-busy crew still
+    /// produces a reply instead of stalling silently.
+    private func pickLead(in members: [Bot]) -> Bot? {
+        if members.isEmpty { return nil }
+        if let streaming = streamingBotID {
+            if let idle = members.first(where: { $0.id != streaming }) {
+                return idle
+            }
+        }
+        return members.first
+    }
+
+    /// Same shape as the per-bot history build, but reads from the crew's
+    /// shared `messages` so the specialist sees the full thread, not just
+    /// their own 1:1 history with the user.
+    private func buildTurns(
+        for crew: Crew,
+        lead: Bot,
+        systemPrompt: String,
+        pendingUser: String
+    ) -> [ChatTurn] {
+        var turns: [ChatTurn] = [ChatTurn(role: "system", content: systemPrompt)]
+        let history = crew.sortedMessages.filter { !$0.isEmpty }
+        let recent = history.suffix(contextWindow)
+        for m in recent {
+            // Image bytes are external storage — the per-bot builder does the
+            // base64 conversion off the main actor; the crew turn builder skips
+            // that optimisation so its hot path is plain text, which is what
+            // 99% of group-chat turns actually carry.
+            turns.append(ChatTurn(
+                role: m.isFromMe ? "user" : "assistant",
+                content: m.text))
+        }
+        var userContent = pendingUser
+        if !userContent.isEmpty {
+            userContent = "Lead specialist: \(lead.name). Reply as that specialist.\n\n\(userContent)"
+        }
+        turns.append(ChatTurn(role: "user", content: userContent))
+        if turns.count > 1, turns[1].role == "assistant" {
+            turns.insert(ChatTurn(role: "user", content: "(continuing the crew chat)"),
+                         at: 1)
+        }
+        return turns
     }
 
     // MARK: - Captain actions

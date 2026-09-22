@@ -74,34 +74,49 @@ final class CrewDeckUITests: XCTestCase {
                 "\(name) missing from the manifest card")
         }
 
-        // Deck card opens the crew detail. Target the Content Squad card so we
-        // can follow a known member (Trend Scout) into their private chat.
-        // Re-resolve the card fresh on each attempt — a cached firstMatch can
-        // go stale once the accessibility tree regenerates.
-        var openedDetail = false
-        for _ in 0..<3 where !openedDetail {
+        // Deck card opens the crew's own group chat — the surface where the
+        // work actually happens. Target the Content Squad card so the step is
+        // deterministic. Re-resolve the card fresh on each attempt — a cached
+        // firstMatch can go stale once the accessibility tree regenerates.
+        var openedChat = false
+        for _ in 0..<3 where !openedChat {
             let squadCard = contentSquadCard()
             if squadCard.waitForExistence(timeout: 2) {
                 squadCard.tap()
             }
-            openedDetail = app.buttons.matching(
-                NSPredicate(format: "label BEGINSWITH %@", "Trend Scout")).firstMatch
+            openedChat = app.otherElements["crew-chat-title"]
                 .waitForExistence(timeout: 3)
-        }
-        XCTAssertTrue(openedDetail,
-                      "Tapping a deck card did not open the crew detail")
-
-        // From the crew detail, open a member's own chat.
-        let memberRow = app.buttons.matching(
-            NSPredicate(format: "label BEGINSWITH %@", "Trend Scout")).firstMatch
-        let header = app.buttons["Trend Scout, online"]
-        var openedChat = false
-        for _ in 0..<3 where !openedChat {
-            memberRow.tap()
-            openedChat = header.waitForExistence(timeout: 3)
+            if !openedChat {
+                openedChat = app.textFields["crew-message-field"]
+                    .waitForExistence(timeout: 3)
+            }
         }
         XCTAssertTrue(openedChat,
-                      "Tapping a crew member did not open their chat")
+                      "Tapping a deck card did not open the crew group chat")
+
+        // The crew chat is a working surface: it has its own composer.
+        XCTAssertTrue(app.textFields["crew-message-field"].waitForExistence(timeout: 5),
+                      "Crew group chat is missing its composer")
+        XCTAssertTrue(app.buttons["crew-send-button"].exists,
+                      "Crew group chat is missing its send button")
+
+        // The roster is still reachable from the crew chat, and each member
+        // can still be opened for a private 1:1.
+        app.buttons["Crew chat options"].tap()
+        app.buttons["Crew details"].tap()
+
+        let memberRow = app.buttons.matching(
+            NSPredicate(format: "label BEGINSWITH %@", "Trend Scout")).firstMatch
+        XCTAssertTrue(memberRow.waitForExistence(timeout: 5),
+                      "Crew details did not list the seeded members")
+        let header = app.buttons["Trend Scout, online"]
+        var openedMemberChat = false
+        for _ in 0..<3 where !openedMemberChat {
+            memberRow.tap()
+            openedMemberChat = header.waitForExistence(timeout: 3)
+        }
+        XCTAssertTrue(openedMemberChat,
+                      "Tapping a crew member did not open their private chat")
     }
 
     func testTapOutsideComposerDismissesKeyboard() throws {

@@ -25,7 +25,7 @@ final class ChatEngineWebResearchTests: XCTestCase {
     private func makeContext() throws -> ModelContext {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
-        let schema = Schema([Bot.self, Message.self, SecureItem.self, Crew.self])
+        let schema = Schema([Bot.self, Message.self, ImportantNote.self, Crew.self])
         let config = ModelConfiguration(schema: schema, url: directory)
         let made = try ModelContainer(for: schema, configurations: [config])
         container = made

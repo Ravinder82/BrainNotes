@@ -49,7 +49,7 @@ final class CaptainActionTests: XCTestCase {
         // the same pattern BotConfigurationTests relies on.
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
-        let schema = Schema([Bot.self, Message.self, SecureItem.self, Crew.self])
+        let schema = Schema([Bot.self, Message.self, ImportantNote.self, Crew.self])
         let config = ModelConfiguration(schema: schema, url: directory)
         let made = try ModelContainer(for: schema, configurations: [config])
         container = made
@@ -87,21 +87,42 @@ final class CaptainActionTests: XCTestCase {
         XCTAssertEqual(result.applied[0], "Create specialist “AI Trend Scout” — Extract the top trending AI topics across the industry each week.")
     }
 
-    func testDuplicateNameRollsBackWholeBatch() throws {
+    func testSameNameReplacesTheOldBotAndWipesItsHistory() throws {
         let context = try makeContext()
-        let existing = Bot(name: "ai trend scout") // case-insensitive clash
+        // Case-insensitive clash: Captain reusing a name ships a new version
+        // rather than failing, and the retired bot's history goes with it.
+        let existing = Bot(name: "ai trend scout", role: "Old role")
+        existing.configurationVersion = 3
         context.insert(existing)
+        let oldMessage = Message(text: "old history", author: .bot, delivery: .delivered)
+        oldMessage.bot = existing
+        context.insert(oldMessage)
         try context.save()
 
         let actions = try CaptainAction.decode(from: validJSON()).get()
-        XCTAssertThrowsError(try CaptainActionProcessor.apply(actions, in: context, existingBots: [existing])) { error in
-            guard case CaptainActionProcessor.ApplyError.duplicateName(let name) = error else {
-                return XCTFail("Expected duplicateName, got \(error)")
-            }
-            XCTAssertEqual(name, "AI Trend Scout")
-        }
+        let result = try CaptainActionProcessor.apply(
+            actions, in: context, existingBots: [existing])
+
+        // The old row is gone; a new version carries the name.
         let bots = try context.fetch(FetchDescriptor<Bot>())
-        XCTAssertEqual(bots.count, 1, "Batch rolled back: no partial specialists linger")
+        XCTAssertEqual(bots.count, 2, "Both specialists exist after the batch")
+        XCTAssertFalse(bots.contains { $0.role == "Old role" },
+                       "The retired version must not linger")
+        let replacement = try XCTUnwrap(bots.first { $0.name == "AI Trend Scout" })
+        XCTAssertEqual(replacement.configurationVersion, 4,
+                       "The replacement continues the version sequence")
+        XCTAssertEqual(bots.filter { $0.name.lowercased() == "ai trend scout" }.count, 1,
+                       "Only one bot may hold a given name")
+
+        // The retired bot's chat history is wiped, not carried over.
+        let messages = try context.fetch(FetchDescriptor<Message>())
+        XCTAssertFalse(messages.contains { $0.text == "old history" },
+                       "History of the retired version is deleted")
+        XCTAssertEqual(result.replaced.count, 1)
+        XCTAssertEqual(result.replaced.first?.previousName, "ai trend scout")
+        XCTAssertEqual(result.replaced.first?.previousVersion, 3)
+        XCTAssertEqual(result.replaced.first?.newBotID, replacement.id)
+        XCTAssertTrue(result.applied.contains { $0.contains("Replace specialist") })
     }
 
     func testSaveFailureRollsBack() throws {
@@ -203,14 +224,19 @@ final class CaptainActionTests: XCTestCase {
         bots = try context.fetch(FetchDescriptor<Bot>())
         XCTAssertEqual(bots.count, 2, "Invalid block must not touch the store")
 
-        // 4. Duplicate protection through the live path too.
-        let duplicate = """
+        // 4. Reusing a name through the live path replaces the old version
+        // rather than rejecting the batch.
+        let revision = """
         ```confabula-actions
         [{"action":"create_specialist","name":"AI Trend Scout","role":"clone"}]
         ```
         """
-        XCTAssertThrowsError(try ChatEngine.applyCaptainActions(
-            in: duplicate, existingBots: bots, context: context))
-        XCTAssertEqual(try context.fetch(FetchDescriptor<Bot>()).count, 2)
+        _ = try ChatEngine.applyCaptainActions(
+            in: revision, existingBots: bots, context: context)
+        let after = try context.fetch(FetchDescriptor<Bot>())
+        XCTAssertEqual(after.count, 2, "A revision replaces in place, it does not add a third")
+        XCTAssertEqual(after.filter { $0.name.lowercased() == "ai trend scout" }.count, 1)
+        XCTAssertEqual(after.first { $0.name == "AI Trend Scout" }?.role, "clone",
+                       "The newest version carries the name")
     }
 }

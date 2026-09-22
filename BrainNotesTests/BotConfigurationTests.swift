@@ -69,7 +69,7 @@ final class BotConfigurationTests: XCTestCase {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
         let url = directory.appendingPathComponent("bots.store")
-        let schema = Schema([Bot.self, Message.self, SecureItem.self])
+        let schema = Schema([Bot.self, Message.self])
         let config = ModelConfiguration(schema: schema, url: url)
         var botID: UUID!
         do {

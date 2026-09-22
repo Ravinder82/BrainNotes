@@ -46,10 +46,73 @@ struct MessageBubble: View {
         return CaptainReply.parse(message.text)
     }
 
-    /// The body as the reader should see it: a Captain reply renders the
-    /// prose only, with the action block worn as a crew card instead.
+    /// True when this bubble is one of Captain's own replies. Captain is the
+    /// Chief of Staff, not a worker: his thread is a management surface, so a
+    /// reply renders as a short status line plus the manifest card rather than
+    /// a full chat-style paragraph.
+    private var isCaptainReply: Bool {
+        !message.isFromMe && message.bot?.id == CaptainProfile.id
+    }
+
+    /// The body as the reader should see it.
+    ///
+    /// A Captain reply is collapsed to one status line: the two long
+    /// paragraphs a Chief of Staff naturally writes belong in the transcript,
+    /// not in a bubble the user has to scroll past to reach their crews.
+    /// Everything else renders its full prose, with any action fence lifted
+    /// out into the manifest card.
     private var displayText: String {
-        captainReply?.prose ?? message.text
+        if isCaptainReply { return captainStatusLine }
+        return captainReply?.prose ?? message.text
+    }
+
+    /// One line naming what Captain actually did this turn, derived from the
+    /// validated actions so it can never claim more than the store received.
+    private var captainStatusLine: String {
+        guard let reply = captainReply else {
+            // Plain management chatter: keep the first sentence so the user
+            // gets the instruction, without the essay behind it.
+            return Self.firstSentence(of: message.text)
+        }
+        if let failure = reply.failure {
+            return "Couldn’t apply that plan — \(failure)"
+        }
+        let crews = reply.actions.filter {
+            if case .createCrew = $0 { return true }
+            return false
+        }.count
+        let specialists = reply.actions.filter {
+            if case .createSpecialist = $0 { return true }
+            return false
+        }.count
+        if crews > 0, specialists > 0 {
+            return "Assembled \(crews) crew\(crews == 1 ? "" : "s") and \(specialists) specialist\(specialists == 1 ? "" : "s")."
+        }
+        if crews > 0 {
+            return crews == 1
+                ? "Crew assembled. Open it from the dashboard to start work."
+                : "\(crews) crews assembled. Open one from the dashboard to start work."
+        }
+        if specialists > 0 {
+            return specialists == 1
+                ? "Added a specialist to the roster."
+                : "Added \(specialists) specialists to the roster."
+        }
+        return "Plan reviewed. No roster changes this turn."
+    }
+
+    /// The first sentence of a body, capped so a reply with no action block
+    /// still reads as a status line rather than a paragraph.
+    static func firstSentence(of text: String) -> String {
+        let flattened = text
+            .replacingOccurrences(of: "\n", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !flattened.isEmpty else { return "" }
+        if let stop = flattened.firstIndex(where: { $0 == "." || $0 == "!" || $0 == "?" }) {
+            let sentence = String(flattened[...stop])
+            if sentence.count <= 180 { return sentence }
+        }
+        return flattened.count <= 180 ? flattened : String(flattened.prefix(179)) + "…"
     }
 
     /// Analysed once per body change and memoised by content hash.

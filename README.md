@@ -8,12 +8,13 @@ BrainNotes is a native iOS application built with Swift and SwiftUI that allows 
 
 ### Key Features
 
-- **Chief Bot (Captain)**: An intelligent coordinator bot that analyzes chat context and can auto-create specialist bots to handle specific tasks
-- **Bot Management**: Create, edit, and organize bots with granular personality and capability settings
+- **Chief Bot (Captain)**: A management surface, not a workspace. Captain designs and revises crews; his thread shows a one-line status plus the roster card, never the deliverable
+- **Crew Group Chats**: The dashboard is crews only — tap a crew card to open its shared group chat, where a lead specialist answers and every member can read the thread
+- **Bot Versioning**: Reusing a specialist's name ships a new version — the retired bot and its history are deleted, so only the current version is ever listed
 - **Crew System**: Group related bots into crews (WhatsApp Community-style) for collaborative task management
 - **Streaming Chat**: Real-time streaming AI responses with typing indicators
 - **Web Tools**: Built-in web search and data fetching capabilities (TinyFish search, Monid data endpoints)
-- **Secure KeyVault**: Encrypted credential storage via iOS Keychain for API keys and passwords
+- **Important Notes**: A single on-device notes page with Edit/Save, opened straight from Settings
 - **Document Scanning**: Vision-based OCR and document scanning with background removal
 - **Markdown Rendering**: Custom lightweight Markdown parser for message formatting
 - **Multiple AI Providers**: Pluggable provider architecture supporting OpenAI-compatible APIs
@@ -45,14 +46,14 @@ BrainNotes/
 │   │   ├── Crew.swift            # Crew entity (grouped bots)
 │   │   ├── Message.swift         # Message entity (text, attachments, sender)
 │   │   ├── ChatRow.swift         # ViewModel for chat list rows
-│   │   ├── SecureItem.swift      # Vault item model (Keychain-backed)
+│   │   ├── ImportantNote.swift   # The Important Notes page text (on device)
 │   │   └── MessageAttachment.swift # Image/photo attachments
 │   ├── Theme/                    # App theming & layout constants
 │   ├── Utils/                    # Device metrics, OCR, image processing
 │   └── Views/                    # SwiftUI views
 │       ├── Chat/                 # Chat-related views (ChatView, ChatThreadView, Composer)
 │       ├── Components/           # Reusable UI components (bubbles, avatars, gestures)
-│       └── Settings/             # Settings screens (KeyVault, passwords, web tools)
+│       └── Settings/             # Settings screens (Important Notes, web tools)
 ├── BrainNotesTests/              # Unit tests
 ├── BrainNotesUITests/            # UI/integration tests
 ├── project.yml                   # Xcode project config (xcodegen)
@@ -96,7 +97,7 @@ xcodebuild -project BrainNotes.xcodeproj \
 
 ### Design Patterns
 
-- **MVVM** — Views are lightweight; business logic lives in `ObservableObject` view models (`ChatEngine`, `KeyVaultDocumentState`, `WebToolStore`)
+- **MVVM** — Views are lightweight; business logic lives in `ObservableObject` view models (`ChatEngine`, `ImportantNotesState`, `WebToolStore`)
 - **Dependency Injection** — Services are passed through initializers for testability
 - **SwiftData** — All persistent models use `@Model` with `@Relationship` for bot-crew-message associations
 - **Combine** — `ObservableObject` with `@Published` for reactive UI updates
@@ -106,7 +107,7 @@ xcodebuild -project BrainNotes.xcodeproj \
 ```
 Bot reply with fenced JSON → CaptainAction.parse → CaptainActionProcessor.apply
                                                          ↓
-              [Validate name uniqueness] → [Validate bounds] → [Apply to store]
+              [Validate bounds] → [Retire same-name bot] → [Apply to store]
                                                          ↓
                                               [Rollback on failure]
 ```
@@ -114,8 +115,19 @@ Bot reply with fenced JSON → CaptainAction.parse → CaptainActionProcessor.ap
 Actions are parsed from fenced code blocks in bot replies:
 
 ```confabula-actions
-{"type": "createBot", "name": "Researcher", "role": "Search specialist"}
+{"type": "create_specialist", "name": "Researcher", "role": "Search specialist"}
 ```
+
+**Versioning rule.** Captain never *rejects* a name he has used before. A
+`create_specialist` (or a `create_crew` member) whose name matches an existing
+bot retires that bot — its 1:1 history is deleted, it is dropped from every
+roster, and the new configuration takes over with `configurationVersion + 1`.
+Only the current version of a specialist ever exists in the store.
+
+**Surface rule.** Captain's thread is a management surface. His replies render
+as one short status line plus the roster card built from the validated action
+block, so the dashboard stays the place where work happens and Captain stays
+the place where work is planned.
 
 ### Web Tool Protocol
 
@@ -130,8 +142,7 @@ Supported operations: `search`, `fetch`, `data`, `inspect`, `run`
 ### Security
 
 - **KeychainStore**: API keys and secrets stored in iOS Keychain (never in plaintext)
-- **KeyVault**: Document-style editor with secret masking (shows only the tail of keys)
-- **SecureItem**: SwiftData model with `@Attribute(.unique)` for deduplication
+- **ImportantNote**: The Important Notes page text, kept in the on-device SwiftData store
 
 ## Testing
 
@@ -165,7 +176,7 @@ xcodebuild test \
 | `BotConfigurationTests` | Bot configuration migration & defaults |
 | `OpenAIClientTests` | Streaming client wire format, JSON parsing |
 | `WebToolsTests` | Web tool block protocol, key lifecycle |
-| `KeyVaultDocumentStateTests` | Debounced autosave, secret masking, discard rules |
+| `ImportantNotesStateTests` | Edit gating, single-row save, stored text round trip |
 | `MarkdownParserTests` | Markdown parsing (blocks, inline, tables) |
 | `TextSelectionTests` | Text selection & interaction handling |
 | `ChatEngineWebResearchTests` | Web research integration |
@@ -191,12 +202,12 @@ Enable web tools in Settings → Web Tools:
 - **TinyFish** (free): Search and web fetch
 - **Monid** (paid): Data endpoints with balance tracking
 
-### KeyVault
+### Important Notes
 
-Store and manage encrypted credentials in Settings → KeyVault:
-- Secrets are masked (only the tail is visible)
-- Auto-saves on edit (debounced)
-- Abandoned empty drafts are automatically discarded
+Keep one free-form notes page in Settings → Important Notes:
+- Tap Edit to type, then Save to store it on device
+- Nothing is written until Save is tapped
+- The saved text is what the page shows on the next visit
 
 ## Contributing
 

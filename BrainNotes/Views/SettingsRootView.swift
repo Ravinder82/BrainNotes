@@ -14,9 +14,9 @@ struct SettingsRootView: View {
                         WebToolsSettingsView()
                     }
                 }
-                Section("KeyVault") {
-                    NavigationLink("Enter") {
-                        PasswordsView()
+                Section("Notes") {
+                    NavigationLink("Important Notes") {
+                        ImportantNotesView()
                     }
                 }
                 Section("About") {

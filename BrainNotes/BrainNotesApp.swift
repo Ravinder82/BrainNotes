@@ -13,7 +13,7 @@ struct BrainNotesApp: App {
     @State private var engine: ChatEngine
 
     init() {
-        let schema = Schema([Bot.self, Message.self, SecureItem.self, Crew.self])
+        let schema = Schema([Bot.self, Message.self, ImportantNote.self, Crew.self])
         // UI tests run against a clean in-memory store so each launch starts
         // from the empty state.
         let isUITesting = CommandLine.arguments.contains("-ui-testing")
@@ -364,7 +364,7 @@ struct BrainNotesApp: App {
         if CommandLine.arguments.contains("-ui-testing")
             && CommandLine.arguments.contains("-simulate-store-open-failure") { return }
         #endif
-        let schema = Schema([Bot.self, Message.self, SecureItem.self, Crew.self])
+        let schema = Schema([Bot.self, Message.self, ImportantNote.self, Crew.self])
         let config = ModelConfiguration(schema: schema,
             isStoredInMemoryOnly: CommandLine.arguments.contains("-ui-testing"))
         do {

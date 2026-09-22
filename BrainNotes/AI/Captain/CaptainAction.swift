@@ -238,23 +238,40 @@ private extension String {
 /// Applies validated Captain actions to the store. This — not Captain's prose
 /// — is the only execution path.
 struct CaptainActionProcessor {
-    /// Result of applying a batch. `actions` are the summaries shown to the
+    /// Result of applying a batch. `applied` are the summaries shown to the
     /// user in the chat as system-style confirmation rows.
+    ///
+    /// `replaced` covers the "new version of the same bot" case: a same-name
+    /// `create_specialist` (or `create_crew` member) retires the old bot and
+    /// its history. The manifest card and the applied-summary line distinguish
+    /// a fresh creation from a replacement so the user can see what changed.
+    /// One retired-and-replaced specialist. A named struct rather than a
+    /// tuple so `BatchResult` keeps its synthesised `Equatable` conformance
+    /// (tuples cannot participate in it).
+    struct Replacement: Equatable {
+        /// The freshly inserted bot that now carries the name.
+        var newBotID: UUID
+        /// The name as it was spelled on the retired bot, for the summary.
+        var previousName: String
+        /// The retired bot's version, so the manifest can show "v1 → v2".
+        var previousVersion: Int
+    }
+
     struct BatchResult: Equatable {
         var applied: [String]
         var createdBotIDs: [UUID]
         /// Crews assembled by this batch, in declaration order.
         var createdCrewIDs: [UUID]
+        /// Bots whose older version was wiped and replaced by this batch, so
+        /// the user can see that a specialist was revised rather than added.
+        var replaced: [Replacement]
     }
 
     enum ApplyError: LocalizedError {
-        case duplicateName(String)
         case saveFailed(String)
 
         var errorDescription: String? {
             switch self {
-            case .duplicateName(let name):
-                return "A bot named “\(name)” already exists. Captain cannot overwrite it."
             case .saveFailed(let message):
                 return message
             }
@@ -263,6 +280,13 @@ struct CaptainActionProcessor {
 
     /// Applies every action or none. A failed save rolls the whole batch back
     /// so a half-applied plan can never linger.
+    ///
+    /// Versioning rule: when a `create_specialist` (or a member inside a
+    /// `create_crew`) targets a bot name that already exists, the old bot is
+    /// retired — its messages and crew memberships are wiped, and the new bot
+    /// takes over with `configurationVersion = oldVersion + 1`. Older versions
+    /// are never kept alongside; the dashboard and crew cards always show the
+    /// current version of every specialist.
     ///
     /// Main-actor isolated because it mutates a SwiftData context and reads
     /// `CaptainProfile.id` (a `@MainActor` static) to stamp the crew.
@@ -274,13 +298,36 @@ struct CaptainActionProcessor {
         existingBots: [Bot]
     ) throws -> BatchResult {
         guard !actions.isEmpty else {
-            return BatchResult(applied: [], createdBotIDs: [], createdCrewIDs: [])
+            return BatchResult(applied: [], createdBotIDs: [],
+                               createdCrewIDs: [], replaced: [])
         }
 
-        var takenNames = Set(existingBots.map { $0.name.lowercased() })
+        // `byName` is the authoritative source of truth mid-batch. Captain may
+        // emit two actions that target the same specialist in one block — the
+        // first one retires an existing bot, and the second must see the
+        // fresh one rather than the old one it just wiped.
+        var byName: [String: Bot] = Dictionary(
+            uniqueKeysWithValues: existingBots.map { ($0.name.lowercased(), $0) }
+        )
         var created: [Bot] = []
         var createdCrews: [Crew] = []
         var applied: [String] = []
+        var replaced: [Replacement] = []
+
+        func retire(named: String) -> RetireInfo? {
+            guard let old = byName[named.lowercased()] else { return nil }
+            // SwiftData's `.cascade` on `Message.bot` tears down the retired
+            // bot's own chat, and the `.nullify` inverse on `Crew.members`
+            // drops it from every roster it belonged to. We delete the
+            // messages explicitly as well so the 1:1 history is gone in the
+            // same transaction the new version arrives in.
+            for m in old.messages { context.delete(m) }
+            byName.removeValue(forKey: named.lowercased())
+            let info = RetireInfo(previousName: old.name,
+                                  previousVersion: old.configurationVersion)
+            context.delete(old)
+            return info
+        }
 
         for action in actions {
             switch action {
@@ -288,16 +335,23 @@ struct CaptainActionProcessor {
                 var memberBots: [Bot] = []
                 for spec in crewSpec.members {
                     let key = spec.name.lowercased()
-                    guard !takenNames.contains(key) else {
-                        created.forEach { context.delete($0) }
-                        createdCrews.forEach { context.delete($0) }
-                        throw ApplyError.duplicateName(spec.name)
-                    }
+                    let prior = retire(named: spec.name)
                     let bot = makeSpecialistBot(from: spec)
+                    if let prior {
+                        bot.configurationVersion = prior.previousVersion + 1
+                        replaced.append(Replacement(newBotID: bot.id,
+                                         previousName: prior.previousName,
+                                         previousVersion: prior.previousVersion))
+                        applied.append(
+                            "Replace specialist “\(spec.name)” (v\(prior.previousVersion)) with the new version"
+                        )
+                    } else {
+                        applied.append(action.summary)
+                    }
                     context.insert(bot)
                     memberBots.append(bot)
                     created.append(bot)
-                    takenNames.insert(key)
+                    byName[key] = bot
                 }
                 let crew = Crew(
                     name: crewSpec.name,
@@ -311,16 +365,22 @@ struct CaptainActionProcessor {
                 applied.append(action.summary)
             case .createSpecialist(let spec):
                 let key = spec.name.lowercased()
-                guard !takenNames.contains(key) else {
-                    created.forEach { context.delete($0) }
-                    createdCrews.forEach { context.delete($0) }
-                    throw ApplyError.duplicateName(spec.name)
-                }
+                let prior = retire(named: spec.name)
                 let bot = makeSpecialistBot(from: spec)
+                if let prior {
+                    bot.configurationVersion = prior.previousVersion + 1
+                    replaced.append(Replacement(newBotID: bot.id,
+                                     previousName: prior.previousName,
+                                     previousVersion: prior.previousVersion))
+                    applied.append(
+                        "Replace specialist “\(spec.name)” (v\(prior.previousVersion)) with the new version"
+                    )
+                } else {
+                    applied.append(action.summary)
+                }
                 context.insert(bot)
                 created.append(bot)
-                takenNames.insert(key)
-                applied.append(action.summary)
+                byName[key] = bot
             }
         }
 
@@ -334,8 +394,19 @@ struct CaptainActionProcessor {
         return BatchResult(
             applied: applied,
             createdBotIDs: created.map(\.id),
-            createdCrewIDs: createdCrews.map(\.id))
+            createdCrewIDs: createdCrews.map(\.id),
+            replaced: replaced)
     }
+
+    /// Internal carrier used to pass the retirement metadata back out of
+    /// `retire(named:)`. Only the prior name and version are needed; the
+    /// identity of the wiped bot is not, because `context.delete(old)` has
+    /// already torn it down.
+    fileprivate struct RetireInfo {
+        let previousName: String
+        let previousVersion: Int
+    }
+
 
     /// One factory for both `create_crew` and `create_specialist` so the bot
     /// configuration stays in exactly one place.
