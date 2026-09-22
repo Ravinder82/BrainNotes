@@ -253,9 +253,12 @@ final class ChatEngine {
                     self.endStream()
                     return
                 }
-                // A partial reply may still carry a tool block; strip it so no
-                // failure path can show machine syntax to a reader.
+                // A partial reply may still carry a tool block — strip both
+                // kinds so no failure path can show machine syntax to a
+                // reader. A Captain reply cut mid-action-fence used to persist
+                // (and then render) its partial JSON.
                 text = WebToolRequest.stripBlocks(text)
+                text = CaptainAction.stripBlocks(text)
                 if text.isEmpty {
                     // Nothing arrived: leave only the failed outgoing bubble.
                     outgoing.delivery = .failed
@@ -685,7 +688,7 @@ final class ChatEngine {
                 let round = try await self.streamRound(
                     client: client, model: model, turns: turns,
                     temperature: configuration.temperature, paintPrefix: "")
-                var text = WebToolRequest.stripBlocks(round.text)
+                let text = WebToolRequest.stripBlocks(round.text)
                 guard !Task.isCancelled else {
                     outgoing.delivery = .sent
                     try? context.save()

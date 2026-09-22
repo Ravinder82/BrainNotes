@@ -1,7 +1,84 @@
 import Foundation
 import SwiftData
 
-/// One structured, validated action Captain may request.
+/// Locates one ```-fenced block in a reply by its tag marker.
+///
+/// Shared by the action parser (display and engine alike) and the web-tool
+/// parser, so the three can never disagree about where a block starts or
+/// ends — they used to be three hand-copied variants of the same five lines,
+/// and the copies had already drifted. Tolerant of a language tag before the
+/// marker (```json-confabula-actions), because models prepend one unprompted
+/// even when the prompt shows the bare fence.
+enum FencedBlock {
+    struct Found {
+        /// The text between the fences, without either fence line.
+        let payload: String
+        /// Both fence lines and everything between them — a range to cut
+        /// from prose when the block must not reach the reader.
+        let full: Range<String.Index>
+    }
+
+    /// The first complete fenced block carrying `marker`, or `nil` — both
+    /// when the marker is absent and when its block never closed, because a
+    /// partial payload cannot be decoded and must not swallow the reply.
+    static func first(in text: String, marker: String) -> Found? {
+        var searchStart = text.startIndex
+        while searchStart < text.endIndex,
+              let tag = text.range(of: marker, range: searchStart..<text.endIndex) {
+            // The tag must sit on a line that opens with a fence; a prose
+            // mention of the marker is skipped in favour of a later real one.
+            let lineStart = lineStart(of: tag.lowerBound, in: text)
+            guard text[lineStart...].hasPrefix("```") else {
+                searchStart = tag.upperBound
+                continue
+            }
+            let afterTag = text[tag.upperBound...]
+            guard let lineEnd = afterTag.firstRange(of: "\n"),
+                  let close = text.range(of: "```",
+                                         range: lineEnd.upperBound..<text.endIndex)
+            else { return nil }
+            return Found(payload: String(text[lineEnd.upperBound..<close.lowerBound]),
+                         full: lineStart..<close.upperBound)
+        }
+        return nil
+    }
+
+    /// Every complete block removed, plus an unclosed opener dropped from its
+    /// line to the end — so no failure path or bubble can leak machine syntax.
+    static func stripAll(in text: String, marker: String) -> String {
+        var result = text
+        while let block = first(in: result, marker: marker) {
+            result.removeSubrange(block.full)
+        }
+        var searchStart = result.startIndex
+        while searchStart < result.endIndex,
+              let tag = result.range(of: marker, range: searchStart..<result.endIndex) {
+            let lineStart = lineStart(of: tag.lowerBound, in: result)
+            guard result[lineStart...].hasPrefix("```") else {
+                searchStart = tag.upperBound
+                continue
+            }
+            result.removeSubrange(lineStart..<result.endIndex)
+            break
+        }
+        // The removed block usually sat on its own line between paragraphs;
+        // without collapsing, the bubble shows a blank canyon where it was.
+        while let gap = result.range(of: "\n\n\n") {
+            result.replaceSubrange(gap, with: "\n\n")
+        }
+        return result.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func lineStart(of index: String.Index, in text: String) -> String.Index {
+        var i = index
+        while i > text.startIndex, text[text.index(before: i)] != "\n" {
+            i = text.index(before: i)
+        }
+        return i
+    }
+}
+
+/// One structured, validated Captain action may request.
 ///
 /// Captain's *text* is never authority. The only way Captain changes anything
 /// is by emitting a fenced ```confabula-actions block containing JSON that
@@ -53,17 +130,18 @@ enum CaptainAction: Equatable {
 
     // MARK: - Envelope
 
-    /// Extracts the first fenced ```confabula-actions block from a reply.
-    /// Tolerant of ```json-confabula-actions too, since models prepend the
-    /// language tag unprompted.
+    /// Extracts the payload of the first fenced ```confabula-actions block
+    /// from a reply. Shares `FencedBlock` with the display parser, so the
+    /// engine and the bubble can never disagree — and, like it, accepts a
+    /// model's unprompted ```json-confabula-actions language tag.
     static func envelope(in reply: String) -> String? {
-        guard let start = reply.range(of: "```confabula-actions") else { return nil }
-        // Optional language tag may carry a suffix; find the end of line.
-        let body = reply[start.upperBound...]
-        guard let lineEnd = body.firstRange(of: "\n") else { return nil }
-        let payload = body[lineEnd.upperBound...]
-        guard let end = payload.range(of: "```") else { return nil }
-        return String(payload[lineEnd.upperBound..<end.lowerBound])
+        FencedBlock.first(in: reply, marker: "confabula-actions")?.payload
+    }
+
+    /// Removes every action block — complete or cut off mid-fence — from a
+    /// reply, so a failure path or a bubble can never show machine syntax.
+    static func stripBlocks(_ text: String) -> String {
+        FencedBlock.stripAll(in: text, marker: "confabula-actions")
     }
 
     // MARK: - Validation

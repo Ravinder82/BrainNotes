@@ -97,4 +97,71 @@ final class CaptainReplyTests: XCTestCase {
         XCTAssertEqual(parsed?.actions.count, 0)
         XCTAssertNotNil(parsed?.failure)
     }
+
+    // MARK: - Regression: "Captain is not generating any output"
+
+    /// The bug behind a bubble that read only "Understood.": every fence-less
+    /// Captain reply was cut to its first sentence, hiding the interview
+    /// question, answer, or critique that followed it.
+    func testReplyWithoutActionsShowsFullProse() {
+        let reply = "Understood. Which platform should ship first — iOS or web?"
+        XCTAssertEqual(CaptainReply.statusLine(forReply: reply), reply)
+    }
+
+    /// A model prepending a language tag used to defeat BOTH the engine (no
+    /// crew created, silently) and this parser (no card). Both now agree.
+    func testLanguageTaggedFenceStillParses() {
+        let reply = """
+        On it.
+
+        ```json-confabula-actions
+        [{"action":"create_specialist","name":"Scout","role":"Watches trends."}]
+        ```
+        """
+        let parsed = CaptainReply.parse(reply)
+        XCTAssertEqual(parsed?.actions.count, 1)
+        XCTAssertEqual(parsed?.prose, "On it.")
+        XCTAssertNotNil(CaptainAction.envelope(in: reply),
+                        "Engine-side extraction must match display-side parsing")
+        XCTAssertEqual(CaptainReply.statusLine(forReply: reply),
+                       "Added a specialist to the roster.")
+    }
+
+    /// A fence carrying nothing to act on must not hide the reply behind a
+    /// canned status either.
+    func testEmptyActionBlockFallsBackToProse() {
+        let reply = """
+        Nothing to change yet — here is the plan.
+
+        ```confabula-actions
+        []
+        ```
+        """
+        XCTAssertEqual(CaptainReply.statusLine(forReply: reply),
+                       "Nothing to change yet — here is the plan.")
+    }
+
+    /// A block the stream cut off mid-fence is stripped from display, not
+    /// shown as machine syntax — while `parse` still declines it (see
+    /// testUnclosedFenceLeavesMessageUntouched).
+    func testStripRemovesUnclosedActionBlock() {
+        let partial = "Partial reply\n```confabula-actions\n[{\"action\":"
+        XCTAssertNil(CaptainReply.parse(partial))
+        XCTAssertEqual(CaptainAction.stripBlocks(partial), "Partial reply")
+        XCTAssertEqual(CaptainReply.statusLine(forReply: partial), "Partial reply")
+    }
+
+    /// Status lines still derive from validated actions only — the card's
+    /// detail keeps its one-line summary.
+    func testActionBlockStillCollapsesToStatusLine() {
+        let reply = """
+        Here is the team.
+
+        ```confabula-actions
+        [{"action":"create_specialist","name":"Scout","role":"Watches trends."}]
+        ```
+        """
+        XCTAssertEqual(CaptainReply.statusLine(forReply: reply),
+                       "Added a specialist to the roster.")
+    }
 }

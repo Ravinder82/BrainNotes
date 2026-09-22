@@ -38,20 +38,18 @@ enum WebToolRequest {
 
     /// `nil` when the reply carries no block at all.
     static func parse(_ text: String) -> Call? {
-        guard let block = blockRange(in: text) else { return nil }
-        let payload = String(text[block.payload])
+        guard let block = FencedBlock.first(in: text, marker: "confabula-web")
+        else { return nil }
         let prose = proseByRemoving(block.full, from: text)
-        return decode(payload, prose: prose)
+        return decode(block.payload, prose: prose)
     }
 
     /// Removes every tool block, leaving trimmed prose. Used on the text that
-    /// is persisted, so no path can show the fence to a reader.
+    /// is persisted, so no path can show the fence to a reader. Shares the
+    /// action parser's fence surgery, including its tolerance of a model's
+    /// unprompted ```json-confabula-web language tag.
     static func stripBlocks(_ text: String) -> String {
-        var result = text
-        while let block = blockRange(in: result) {
-            result.removeSubrange(block.full)
-        }
-        return tidy(result)
+        FencedBlock.stripAll(in: text, marker: "confabula-web")
     }
 
     // MARK: - Decode
@@ -100,38 +98,17 @@ enum WebToolRequest {
 
     // MARK: - Fence surgery
 
-    /// Where a block sits, split so callers can lift the payload out and cut
-    /// the whole block (fence included) from the prose.
-    private struct Block {
-        var full: Range<String.Index>
-        var payload: Range<String.Index>
-    }
-
-    private static func blockRange(in text: String) -> Block? {
-        guard let opening = text.range(of: fence) else { return nil }
-        let afterMarker = text[opening.upperBound...]
-        guard let firstLine = afterMarker.firstRange(of: "\n"),
-              let closing = afterMarker[firstLine.upperBound...].range(of: "```")
-        else { return nil }
-        return Block(full: opening.lowerBound..<closing.upperBound,
-                     payload: firstLine.upperBound..<closing.lowerBound)
-    }
-
     private static func proseByRemoving(_ range: Range<String.Index>, from text: String) -> String {
         var prose = text
         prose.removeSubrange(range)
-        return tidy(prose)
-    }
-
-    /// The removed block usually sat on its own line between paragraphs;
-    /// without collapsing, the bubble shows a blank canyon where it was.
-    private static func tidy(_ text: String) -> String {
-        var prose = text
+        // The removed block usually sat on its own line between paragraphs;
+        // without collapsing, the bubble shows a blank canyon where it was.
         while let gap = prose.range(of: "\n\n\n") {
             prose.replaceSubrange(gap, with: "\n\n")
         }
         return prose.trimmingCharacters(in: .whitespacesAndNewlines)
     }
+
 }
 
 // MARK: - Operations

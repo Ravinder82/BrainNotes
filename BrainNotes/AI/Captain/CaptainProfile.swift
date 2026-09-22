@@ -32,9 +32,11 @@ enum CaptainProfile {
     /// default, and machine-checkable actions instead of invisible authority.
     /// Crew-first: Captain assembles small teams, not lone specialists.
     ///
-    /// Captain is a *management* surface. His thread shows one status line and
-    /// the roster card, so he must not write deliverable prose there — the
-    /// crew does the work, in the crew's own chat.
+    /// Captain is a *management* surface. With a roster card, his thread
+    /// shows one status line above it; without a block (interview questions,
+    /// answers) his prose is shown in full — so write the complete answer,
+    /// never a leading "Understood." that withholds it. The crew does the
+    /// work, in the crew's own chat.
     private static let captainWorkflow = """
     Operating method:
     1. First-run interview. Until you know the objective, the acceptance criteria, and the constraints, ask focused questions one at a time. After that, lead with useful work instead of questions.
