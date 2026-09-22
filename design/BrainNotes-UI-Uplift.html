@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BrainNotes — UI Uplift</title>
+<style>
+  /* ============ TOKENS (from DESIGN.md — "BrainNotes Bridge") ============ */
+  :root {
+    --paper:#F6F4F0; --surface:#FFFFFF; --sunken:#EFEAE2;
+    --ink:#0B141A; --ink-2:#5B6B73;
+    --teal:#00A884; --teal-deep:#008069; --teal-ink:#00705C;
+    --hairline:#E4E0D9; --out:#D9FDD3; --field:#FFFFFF; --bar:#FFFFFF;
+    --live:#25D366; --danger:#C0392B; --banner:#F6F4F0;
+    --shadow:0 1px 3px rgba(11,20,26,.08), 0 8px 24px rgba(11,20,26,.06);
+    --frame-shadow:0 2px 6px rgba(11,20,26,.10), 0 24px 60px rgba(11,20,26,.14);
+    --r-sm:8px; --r-md:14px; --r-lg:20px; --r-pill:999px;
+    --font:-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  }
+  html[data-theme="dark"] {
+    --paper:#0B141A; --surface:#18262E; --sunken:#131F26;
+    --ink:#F2F5F6; --ink-2:#8FA3AD;
+    --hairline:#2A3942; --out:#0B5E4E; --field:#22333C; --bar:#18262E;
+    --banner:#131F26;
+    --shadow:none; --frame-shadow:0 0 0 1px #2A3942, 0 24px 60px rgba(0,0,0,.5);
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body {
+    font-family:var(--font); background:var(--paper); color:var(--ink);
+    padding:32px 24px 72px; text-wrap:pretty; transition:background .25s, color .25s;
+  }
+  .wrap { max-width:1180px; }
+  h1 { font-size:28px; font-weight:700; letter-spacing:-.02em; }
+  .sub { color:var(--ink-2); font-size:15px; margin-top:6px; max-width:64ch; }
+  section { margin-top:44px; }
+  .overline {
+    font-size:11px; font-weight:600; letter-spacing:.08em; color:var(--ink-2);
+    text-transform:uppercase; display:flex; align-items:center; gap:8px; margin-bottom:14px;
+  }
+  .overline .n {
+    display:inline-flex; align-items:center; justify-content:center;
+    width:20px; height:20px; border-radius:var(--r-pill);
+    background:var(--surface); border:1px solid var(--hairline); font-size:10px;
+  }
+
+  /* ============ TWEAKS ============ */
+  .tweaks { display:flex; gap:8px; align-items:center; margin-top:18px; }
+  .tweaks .lbl { font-size:11px; font-weight:600; letter-spacing:.08em; color:var(--ink-2); text-transform:uppercase; }
+  .tbtn {
+    font-family:var(--font); font-size:12.5px; font-weight:600; cursor:pointer;
+    padding:6px 14px; border-radius:var(--r-pill); border:1px solid var(--hairline);
+    background:var(--surface); color:var(--ink-2);
+  }
+  .tbtn[aria-pressed="true"] { background:var(--teal-deep); border-color:var(--teal-deep); color:#fff; }
+
+  /* ============ TOKEN STRIP ============ */
+  .swatches { display:flex; flex-wrap:wrap; gap:10px; }
+  .sw {
+    width:132px; border:1px solid var(--hairline); border-radius:var(--r-md);
+    overflow:hidden; background:var(--surface);
+  }
+  .sw .chip { height:44px; }
+  .sw .meta { padding:7px 9px 9px; }
+  .sw .nm { font-size:11.5px; font-weight:600; }
+  .sw .hx { font-size:10.5px; color:var(--ink-2); font-family:ui-monospace, Menlo, monospace; }
+  .type-scale { margin-top:18px; display:grid; gap:6px; }
+  .type-scale div { color:var(--ink); }
+  .t-h1 { font-size:28px; font-weight:700; letter-spacing:-.02em; }
+  .t-h2 { font-size:18px; font-weight:600; letter-spacing:-.01em; }
+  .t-body { font-size:15px; }
+  .t-cap { font-size:12px; font-weight:500; color:var(--ink-2); }
+  .t-over { font-size:11px; font-weight:600; letter-spacing:.08em; color:var(--ink-2); text-transform:uppercase; }
+  .radii { display:flex; gap:12px; margin-top:18px; align-items:flex-end; }
+  .radii .r {
+    width:76px; height:56px; background:var(--surface); border:1px solid var(--hairline);
+    display:flex; align-items:flex-end; justify-content:center; padding-bottom:5px;
+    font-size:10.5px; color:var(--ink-2);
+  }
+
+  /* ============ PHONE FRAME ============ */
+  .screens { display:flex; gap:28px; flex-wrap:wrap; align-items:flex-start; }
+  .screen-col { display:flex; flex-direction:column; gap:10px; }
+  .screen-cap { font-size:12px; color:var(--ink-2); font-weight:500; }
+  .phone {
+    width:393px; height:780px; background:var(--paper); border-radius:40px;
+    box-shadow:var(--frame-shadow); overflow:hidden; display:flex; flex-direction:column;
+    position:relative; border:1px solid var(--hairline);
+  }
+  html[data-theme="dark"] .phone { border-color:var(--hairline); }
+  .statusbar {
+    height:44px; flex:none; display:flex; align-items:center; justify-content:space-between;
+    padding:0 26px; font-size:13px; font-weight:600; background:var(--bar); color:var(--ink);
+  }
+  .sb-right { display:flex; gap:5px; align-items:center; }
+  .nav {
+    background:var(--bar); padding:6px 16px 10px; display:flex; align-items:center; gap:10px;
+    border-bottom:1px solid var(--hairline);
+  }
+  .nav .title { font-size:16.5px; font-weight:600; letter-spacing:-.01em; flex:1; text-align:center; }
+  .icon-btn {
+    width:32px; height:32px; display:grid; place-items:center; border-radius:var(--r-pill);
+    background:transparent; border:none; cursor:pointer; color:var(--ink-2);
+  }
+  .icon-btn:hover { background:var(--sunken); }
+
+  /* ---- Captain card ---- */
+  .captain {
+    margin:12px; padding:16px; background:var(--surface); border:1px solid var(--hairline);
+    border-radius:var(--r-lg); box-shadow:var(--shadow); display:flex; align-items:center; gap:14px;
+    cursor:pointer; transition:transform .12s ease, box-shadow .12s ease; text-align:left; width:calc(100% - 24px);
+    font-family:var(--font); color:var(--ink);
+  }
+  .captain:hover { transform:translateY(-1px); }
+  .captain:active { transform:scale(.985); }
+  .disc-hero {
+    width:48px; height:48px; flex:none; border-radius:var(--r-pill); background:var(--teal-deep);
+    display:grid; place-items:center; color:#fff; box-shadow:0 0 0 6px color-mix(in srgb, var(--teal) 14%, transparent);
+  }
+  .captain .txt { flex:1; min-width:0; }
+  .captain .nm { font-size:17px; font-weight:600; letter-spacing:-.01em; }
+  .captain .role { font-size:13px; font-weight:600; color:var(--teal-ink); margin-top:1px; }
+  html[data-theme="dark"] .captain .role { color:var(--teal); }
+  .captain .tag { font-size:12px; color:var(--ink-2); margin-top:2px; }
+  .chev { color:var(--ink-2); opacity:.55; flex:none; }
+
+  /* ---- Section overline ---- */
+  .sec-head {
+    display:flex; align-items:center; gap:7px; padding:14px 16px 8px;
+    font-size:11px; font-weight:600; letter-spacing:.08em; color:var(--ink-2); text-transform:uppercase;
+  }
+
+  /* ---- Crew rail ---- */
+  .rail { display:flex; gap:14px; padding:2px 16px 16px; overflow:hidden; }
+  .crew {
+    width:180px; height:196px; flex:none; background:var(--surface); border:1px solid var(--hairline);
+    border-radius:var(--r-lg); padding:14px; display:flex; flex-direction:column; gap:10px;
+    cursor:pointer; transition:transform .12s ease, box-shadow .12s ease; box-shadow:var(--shadow);
+    text-align:left; font-family:var(--font); color:var(--ink);
+  }
+  .crew:hover { transform:translateY(-2px); }
+  .crew:active { transform:scale(.98); }
+  .crew .head { display:flex; align-items:center; gap:10px; }
+  .emoji-disc {
+    width:44px; height:44px; flex:none; border-radius:14px; display:grid; place-items:center;
+    font-size:22px; position:relative; background:color-mix(in srgb, var(--tint) 18%, var(--surface));
+    box-shadow:inset 0 0 0 1.5px color-mix(in srgb, var(--tint) 55%, transparent);
+  }
+  .emoji-disc .grp {
+    position:absolute; right:-3px; bottom:-3px; width:17px; height:17px; border-radius:var(--r-pill);
+    background:var(--teal-deep); color:#fff; display:grid; place-items:center;
+    border:1.5px solid var(--surface);
+  }
+  .pill {
+    height:22px; padding:0 9px; border-radius:var(--r-pill); display:inline-flex; align-items:center; gap:5px;
+    font-size:10.5px; font-weight:600; letter-spacing:.01em;
+  }
+  .pill.live { background:var(--teal-deep); color:#fff; }
+  .pill.live .dot { width:6px; height:6px; border-radius:50%; background:var(--live); animation:pulse 1.6s ease-in-out infinite; }
+  .pill.idle { background:var(--sunken); color:var(--ink-2); }
+  @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:.35 } }
+  @media (prefers-reduced-motion: reduce) { .pill.live .dot { animation:none } * { transition:none !important } }
+  .crew .nm { font-size:14.5px; font-weight:600; letter-spacing:-.01em; }
+  .crew .mission { font-size:11.5px; color:var(--ink-2); line-height:1.35; margin-top:3px;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .stack { display:flex; margin-top:auto; }
+  .stack .av {
+    width:24px; height:24px; border-radius:50%; display:grid; place-items:center; font-size:11.5px;
+    box-shadow:0 0 0 1.5px var(--surface); margin-right:-7px; position:relative;
+    background:color-mix(in srgb, var(--tint) 85%, #fff 15%);
+  }
+  html[data-theme="dark"] .stack .av { background:color-mix(in srgb, var(--tint) 75%, #000 10%); }
+  .stack .av .wd { position:absolute; right:-1px; bottom:-1px; width:7px; height:7px; border-radius:50%;
+    background:var(--live); box-shadow:0 0 0 1.5px var(--surface); }
+  .stack .more {
+    width:24px; height:24px; border-radius:50%; display:grid; place-items:center; font-size:10px;
+    font-weight:600; color:var(--ink-2); background:var(--sunken); box-shadow:0 0 0 1.5px var(--surface);
+    margin-right:-7px;
+  }
+
+  /* ---- Setup banner ---- */
+  .banner {
+    margin:4px 16px 0; padding:12px; background:var(--banner); border:1px solid var(--hairline);
+    border-radius:var(--r-md); display:flex; align-items:center; gap:12px; cursor:pointer;
+    width:calc(100% - 32px); font-family:var(--font); color:var(--ink); text-align:left;
+  }
+  .banner .d { width:38px; height:38px; flex:none; border-radius:var(--r-pill); background:var(--teal-deep);
+    color:#fff; display:grid; place-items:center; }
+  .banner .t1 { font-size:13.5px; font-weight:600; }
+  .banner .t2 { font-size:12px; color:var(--ink-2); margin-top:1px; }
+
+  /* ---- Chat thread ---- */
+  .thread { flex:1; background:var(--sunken); padding:12px 12px 8px; display:flex; flex-direction:column; gap:4px; overflow:hidden; }
+  .datepill {
+    align-self:center; background:var(--surface); border:1px solid var(--hairline); color:var(--ink-2);
+    font-size:10.5px; font-weight:600; letter-spacing:.06em; padding:4px 10px; border-radius:var(--r-pill);
+    margin:2px 0 6px;
+  }
+  .row { display:flex; }
+  .row.me { justify-content:flex-end; }
+  .bubble {
+    max-width:76%; padding:8px 12px; border-radius:var(--r-md); font-size:15px; line-height:1.4;
+    position:relative; box-shadow:0 1px 1px rgba(11,20,26,.10);
+  }
+  .bubble .tail { position:absolute; bottom:0; width:8px; height:8px; }
+  .row.them .bubble { background:var(--surface); color:var(--ink); border-bottom-left-radius:4px; }
+  html[data-theme="dark"] .row.them .bubble { background:#1B2930; box-shadow:none; border:1px solid var(--hairline); }
+  .row.me .bubble { background:var(--out); color:var(--ink); border-bottom-right-radius:4px; box-shadow:none; }
+  .meta { display:flex; align-items:center; gap:3px; justify-content:flex-end; float:right;
+    margin:8px 0 -2px 10px; font-size:11px; font-weight:500; color:var(--ink-2); }
+
+  /* ---- Crew manifest card ---- */
+  .manifest {
+    background:var(--surface); border:1px solid var(--hairline); border-radius:var(--r-md);
+    overflow:hidden; box-shadow:var(--shadow); max-width:82%; margin:4px 0;
+  }
+  html[data-theme="dark"] .manifest { background:#1B2930; box-shadow:none; }
+  .manifest .mh {
+    display:flex; align-items:center; gap:7px; padding:9px 12px; color:var(--teal-ink);
+    font-size:11.5px; font-weight:600; letter-spacing:.02em; border-bottom:1px solid var(--hairline);
+  }
+  html[data-theme="dark"] .manifest .mh { color:var(--teal); }
+  .manifest .mwrap { padding:0; }
+  .manifest .mrow { display:flex; align-items:center; gap:10px; padding:8px 12px; position:relative; }
+  .manifest .mrow + .mrow::before {
+    content:""; position:absolute; left:52px; right:0; top:0; height:1px; background:var(--hairline);
+  }
+  .memoji {
+    width:30px; height:30px; flex:none; border-radius:50%; display:grid; place-items:center; font-size:14px;
+    background:color-mix(in srgb, var(--tint) 18%, transparent);
+    box-shadow:inset 0 0 0 1.5px color-mix(in srgb, var(--tint) 55%, transparent);
+  }
+  .manifest .mnm { font-size:13.5px; font-weight:600; }
+  .manifest .mrl { font-size:11.5px; color:var(--ink-2); margin-top:1px; }
+
+  .typing .bubble { display:flex; gap:4px; padding:12px 14px; align-items:center; }
+  .typing .b { width:7px; height:7px; border-radius:50%; background:var(--ink-2); opacity:.5;
+    animation:blink 1.2s infinite; }
+  .typing .b:nth-child(2) { animation-delay:.2s } .typing .b:nth-child(3) { animation-delay:.4s }
+  @keyframes blink { 0%,60%,100% { opacity:.3; transform:translateY(0) } 30% { opacity:.9; transform:translateY(-3px) } }
+  @media (prefers-reduced-motion: reduce) { .typing .b { animation:none } }
+
+  /* ---- Composer ---- */
+  .composer { background:var(--bar); border-top:1px solid var(--hairline); padding:8px 10px 10px; }
+  .reply {
+    display:flex; align-items:center; gap:10px; background:var(--surface); border:1px solid var(--hairline);
+    border-radius:var(--r-md); padding:8px 10px; margin-bottom:8px; overflow:hidden;
+  }
+  .reply .rail4 { width:3px; align-self:stretch; border-radius:2px; background:var(--teal-deep); flex:none; }
+  .reply .who { font-size:12px; font-weight:600; color:var(--teal-ink); }
+  html[data-theme="dark"] .reply .who { color:var(--teal); }
+  .reply .prev { font-size:12px; color:var(--ink-2); margin-top:1px; white-space:nowrap; overflow:hidden;
+    text-overflow:ellipsis; max-width:230px; }
+  .comp-row { display:flex; align-items:flex-end; gap:8px; }
+  .disc-quiet {
+    width:36px; height:36px; flex:none; border-radius:var(--r-pill); background:var(--banner);
+    color:var(--teal-ink); display:grid; place-items:center; border:1px solid var(--hairline); cursor:pointer;
+    transition:transform .1s ease;
+  }
+  html[data-theme="dark"] .disc-quiet { color:var(--teal); background:#131F26; }
+  .disc-quiet:hover { transform:scale(1.05); }
+  .field {
+    flex:1; min-width:0; min-height:44px; background:var(--field); border:1px solid var(--hairline);
+    border-radius:var(--r-pill); padding:11px 16px; font-size:15px; color:var(--ink);
+    display:flex; align-items:center; overflow:hidden; white-space:nowrap;
+  }
+  .field span { min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .field .ph { color:var(--ink-2); opacity:.75; }
+  .field.focus { border-color:var(--teal); box-shadow:0 0 0 3px color-mix(in srgb, var(--teal) 22%, transparent); }
+  .send {
+    width:44px; height:44px; flex:none; border:none; border-radius:var(--r-pill); background:var(--teal-deep);
+    color:#fff; display:grid; place-items:center; cursor:pointer; transition:transform .1s ease, opacity .15s;
+  }
+  .send:hover { transform:scale(1.05); }
+  .send:disabled { opacity:.4; cursor:default; transform:none; }
+
+  /* ============ COMPONENT LAB ============ */
+  .lab { display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:16px; }
+  .lab-card { background:var(--surface); border:1px solid var(--hairline); border-radius:var(--r-md); padding:16px; }
+  .lab-card h3 { font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--ink-2); margin-bottom:12px; }
+  .lab-row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .lab-note { font-size:11.5px; color:var(--ink-2); margin-top:10px; line-height:1.45; }
+  .btn {
+    font-family:var(--font); font-size:14px; font-weight:600; padding:9px 16px; border-radius:var(--r-pill);
+    border:1px solid transparent; cursor:pointer;
+  }
+  .btn.primary { background:var(--teal-deep); color:#fff; }
+  .btn.primary:hover { background:var(--teal-ink); }
+  .btn.quiet { background:var(--banner); color:var(--ink); border-color:var(--hairline); }
+  .btn:disabled { opacity:.4; }
+
+  /* ============ WHAT CHANGED ============ */
+  .changes { display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:8px 28px; }
+  .changes li { list-style:none; font-size:13.5px; line-height:1.5; padding:7px 0 7px 26px;
+    position:relative; border-bottom:1px solid var(--hairline); color:var(--ink); }
+  .changes li::before { content:"→"; position:absolute; left:0; color:var(--teal-ink); font-weight:700; }
+  html[data-theme="dark"] .changes li::before { color:var(--teal); }
+  .changes b { font-weight:600; }
+  .changes span { color:var(--ink-2); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>BrainNotes — UI Uplift</h1>
+    <p class="sub">Main screen + chat interfaces, rebuilt on the <b>BrainNotes Bridge</b> token system
+      (DESIGN.md). One signal colour, a four-step corner family, discs for every glyph, and cards that
+      lift on hairlines instead of decoration.</p>
+    <div class="tweaks">
+      <span class="lbl">Tweaks · Theme</span>
+      <button class="tbtn" data-set-theme="light" aria-pressed="true">Light</button>
+      <button class="tbtn" data-set-theme="dark" aria-pressed="false">Dark</button>
+    </div>
+  </header>
+
+  <!-- ============ 1. TOKENS ============ -->
+  <section>
+    <div class="overline"><span class="n">1</span> Token foundation</div>
+    <div class="swatches">
+      <div class="sw"><div class="chip" style="background:#0B141A"></div><div class="meta"><div class="nm">Primary / ink</div><div class="hx">#0B141A</div></div></div>
+      <div class="sw"><div class="chip" style="background:#5B6B73"></div><div class="meta"><div class="nm">Secondary</div><div class="hx">#5B6B73</div></div></div>
+      <div class="sw"><div class="chip" style="background:#008069"></div><div class="meta"><div class="nm">Tertiary · action</div><div class="hx">#008069</div></div></div>
+      <div class="sw"><div class="chip" style="background:#00A884"></div><div class="meta"><div class="nm">Accent · live</div><div class="hx">#00A884</div></div></div>
+      <div class="sw"><div class="chip" style="background:#F6F4F0"></div><div class="meta"><div class="nm">Neutral paper</div><div class="hx">#F6F4F0</div></div></div>
+      <div class="sw"><div class="chip" style="background:#EFEAE2"></div><div class="meta"><div class="nm">Sunken / wallpaper</div><div class="hx">#EFEAE2</div></div></div>
+      <div class="sw"><div class="chip" style="background:#D9FDD3"></div><div class="meta"><div class="nm">Bubble outgoing</div><div class="hx">#D9FDD3</div></div></div>
+      <div class="sw"><div class="chip" style="background:#18262E"></div><div class="meta"><div class="nm">Dark raised</div><div class="hx">#18262E</div></div></div>
+      <div class="sw"><div class="chip" style="background:#25D366"></div><div class="meta"><div class="nm">Live dot</div><div class="hx">#25D366</div></div></div>
+      <div class="sw"><div class="chip" style="background:#C0392B"></div><div class="meta"><div class="nm">Danger</div><div class="hx">#C0392B</div></div></div>
+    </div>
+    <div class="type-scale">
+      <div class="t-h1">Captain, assemble the crew — h1 · 28/700 · −0.02em</div>
+      <div class="t-h2">Launch Crew — h2 · 18/600 · −0.01em</div>
+      <div class="t-body">Demo script — keep it under 45 seconds. — body · 15/400</div>
+      <div class="t-cap">writing · 1,204 chars — caption · 12/500</div>
+      <div class="t-over">Crews · 4 — overline · 11/600 · +0.08em</div>
+    </div>
+    <div class="radii">
+      <div class="r" style="border-radius:8px">sm · 8</div>
+      <div class="r" style="border-radius:14px">md · 14</div>
+      <div class="r" style="border-radius:20px">lg · 20</div>
+      <div class="r" style="border-radius:999px">pill</div>
+    </div>
+  </section>
+
+  <!-- ============ 2. SCREENS ============ -->
+  <section>
+    <div class="overline"><span class="n">2</span> Screens</div>
+    <div class="screens">
+
+      <!-- ---------- MAIN SCREEN ---------- -->
+      <div class="screen-col">
+        <div class="screen-cap">Main screen — Explore surface: Captain first, then the crew rail</div>
+        <div class="phone">
+          <div class="statusbar">
+            <span>9:41</span>
+            <span class="sb-right">
+              <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg>
+              <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="15" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 0 0 0-4z" fill="currentColor" opacity=".4"/></svg>
+            </span>
+          </div>
+          <div class="nav">
+            <button class="icon-btn" aria-label="Settings">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v3M12 18.2v3M2.8 12h3M18.2 12h3M5.5 5.5l2.1 2.1M16.4 16.4l2.1 2.1M18.5 5.5l-2.1 2.1M7.6 16.4l-2.1 2.1" stroke-linecap="round"/></svg>
+            </button>
+            <span class="title">BrainNotes</span>
+            <span style="width:32px"></span>
+          </div>
+
+          <button class="captain">
+            <span class="disc-hero">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+                <circle cx="12" cy="12" r="6.4"/><circle cx="12" cy="12" r="2.3" fill="currentColor" stroke="none"/>
+                <path d="M12 1.8v3.6M12 18.6v3.6M1.8 12h3.6M18.6 12h3.6M4.8 4.8l2.6 2.6M16.6 16.6l2.6 2.6M19.2 4.8l-2.6 2.6M7.4 16.6l-2.6 2.6"/>
+              </svg>
+            </span>
+            <span class="txt">
+              <div class="nm">Captain</div>
+              <div class="role">Chief of Staff</div>
+              <div class="tag">Plan your next outcome</div>
+            </span>
+            <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+          </button>
+
+          <div class="sec-head">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8.5" cy="8.5" r="3.4"/><circle cx="17" cy="9.5" r="2.6"/><path d="M2.8 19c.6-3 3-4.8 5.7-4.8s5.1 1.8 5.7 4.8M15.2 14.6c2.5.1 4.6 1.8 5.2 4.4" stroke-linecap="round"/></svg>
+            Crews · 4
+          </div>
+
+          <div class="rail">
+            <button class="crew" style="--tint:#00A884">
+              <div class="head">
+                <span class="emoji-disc" style="--tint:#00A884">🚀
+                  <span class="grp"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="9" cy="8" r="3.6"/><path d="M3 19c.5-2.7 2.8-4.4 5.4-4.4S13.3 16.3 13.8 19M16 8.5h5M18.5 6v5" stroke-linecap="round"/></svg></span>
+                </span>
+                <span class="pill live"><span class="dot"></span>2 working</span>
+              </div>
+              <div>
+                <div class="nm">Launch Crew</div>
+                <div class="mission">Ships the v2 demo and the launch thread this week.</div>
+              </div>
+              <div class="stack">
+                <span class="av" style="--tint:#6A5ACD">🎬<span class="wd"></span></span>
+                <span class="av" style="--tint:#E67E22">✍️<span class="wd"></span></span>
+                <span class="av" style="--tint:#16A085">🔭</span>
+                <span class="av" style="--tint:#2980B9">🛡️</span>
+                <span class="more">+2</span>
+              </div>
+            </button>
+
+            <button class="crew" style="--tint:#6A5ACD">
+              <div class="head">
+                <span class="emoji-disc" style="--tint:#6A5ACD">🧪
+                  <span class="grp"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="9" cy="8" r="3.6"/><path d="M3 19c.5-2.7 2.8-4.4 5.4-4.4S13.3 16.3 13.8 19M16 8.5h5M18.5 6v5" stroke-linecap="round"/></svg></span>
+                </span>
+                <span class="pill idle">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5z"/></svg>
+                  Idle</span>
+              </div>
+              <div>
+                <div class="nm">Research Crew</div>
+                <div class="mission">Sources and verifies facts before any draft ships.</div>
+              </div>
+              <div class="stack">
+                <span class="av" style="--tint:#C0392B">🧭</span>
+                <span class="av" style="--tint:#16A085">⚗️</span>
+                <span class="av" style="--tint:#8E44AD">🧠</span>
+              </div>
+            </button>
+
+            <button class="crew" style="--tint:#E67E22">
+              <div class="head">
+                <span class="emoji-disc" style="--tint:#E67E22">🎬</span>
+                <span class="pill idle">Idle</span>
+              </div>
+              <div>
+                <div class="nm">Content Squad</div>
+                <div class="mission">Turns this week's AI trends into short-form…</div>
+              </div>
+              <div class="stack">
+                <span class="av" style="--tint:#27AE60">📚</span>
+                <span class="av" style="--tint:#2980B9">✅</span>
+              </div>
+            </button>
+          </div>
+
+          <button class="banner">
+            <span class="d"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="8" cy="12" r="4"/><path d="M12 12h9M17.5 12v3.5M20.5 12v2.5" stroke-linecap="round"/></svg></span>
+            <span>
+              <div class="t1">Add your AI API key</div>
+              <div class="t2">Bring your own OpenAI-compatible key to start chatting.</div>
+            </span>
+            <svg class="chev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto"><path d="M9 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- ---------- CHAT SCREEN ---------- -->
+      <div class="screen-col">
+        <div class="screen-cap">Chat interface — Command surface: header, thread, manifest, composer</div>
+        <div class="phone">
+          <div class="statusbar">
+            <span>9:41</span>
+            <span class="sb-right">
+              <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg>
+              <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="15" height="8" rx="1.5" fill="currentColor"/><path d="M23 4v4a2 2 0 0 0 0-4z" fill="currentColor" opacity=".4"/></svg>
+            </span>
+          </div>
+          <div class="nav">
+            <button class="icon-btn" aria-label="Back">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+            </button>
+            <span style="display:flex;align-items:center;gap:9px;flex:1;justify-content:center">
+              <span class="emoji-disc" style="--tint:#008069;width:32px;height:32px;border-radius:11px;font-size:16px">🧭</span>
+              <span style="text-align:left">
+                <span style="display:block;font-size:15.5px;font-weight:600;letter-spacing:-.01em">Captain</span>
+                <span style="display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--teal-ink)">
+                  <span style="width:6px;height:6px;border-radius:50%;background:var(--live);display:inline-block"></span>
+                  writing · 1,204 chars
+                </span>
+              </span>
+            </span>
+            <span style="width:32px"></span>
+          </div>
+
+          <div class="thread">
+            <div class="datepill">TODAY</div>
+
+            <div class="row them">
+              <div class="bubble">Two directions for the launch note: a build-in-public thread, or a short demo script. Which one ships today?
+                <span class="meta">9:38</span>
+              </div>
+            </div>
+
+            <div class="row me">
+              <div class="bubble">Demo script — keep it under 45 seconds.
+                <span class="meta">9:39
+                  <svg width="15" height="11" viewBox="0 0 18 12" fill="none" stroke="#53BDEB" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 6.5l3.4 3.4L12 2.8"/><path d="M7.5 9.9L13.6 2.8l2.9 2.9-6.1 7.1"/></svg>
+                </span>
+              </div>
+            </div>
+
+            <div class="row them" style="margin-top:4px">
+              <div class="manifest">
+                <div class="mh">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="8.5" cy="8.5" r="3.4"/><circle cx="17" cy="9.5" r="2.6"/><path d="M2.8 19c.6-3 3-4.8 5.7-4.8s5.1 1.8 5.7 4.8M15.2 14.6c2.5.1 4.6 1.8 5.2 4.4" stroke-linecap="round"/></svg>
+                  Crew assembled · 3 specialists
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" style="margin-left:auto"><circle cx="12" cy="12" r="6.4"/><circle cx="12" cy="12" r="2.3" fill="currentColor" stroke="none"/><path d="M12 1.8v3.6M12 18.6v3.6M1.8 12h3.6M18.6 12h3.6"/></svg>
+                </div>
+                <div class="mwrap">
+                  <div class="mrow" style="--tint:#E67E22"><span class="memoji">🎬</span><span><div class="mnm">Reels Editor</div><div class="mrl">Cuts a 45s demo from your screen recording</div></span>
+                    <svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto"><path d="M9 5l7 7-7 7"/></svg>
+                  </div>
+                  <div class="mrow" style="--tint:#2980B9"><span class="memoji">✍️</span><span><div class="mnm">Copywriter</div><div class="mrl">Writes the voiceover and the launch thread</div></span>
+                    <svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto"><path d="M9 5l7 7-7 7"/></svg>
+                  </div>
+                  <div class="mrow" style="--tint:#16A085"><span class="memoji">🔭</span><span><div class="mnm">Researcher</div><div class="mrl">Verifies every claim before it ships</div></span>
+                    <svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto"><path d="M9 5l7 7-7 7"/></svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="row them typing" style="margin-top:4px">
+              <div class="bubble"><span class="b"></span><span class="b"></span><span class="b"></span></div>
+            </div>
+          </div>
+
+          <div class="composer">
+            <div class="reply">
+              <span class="rail4"></span>
+              <span style="min-width:0">
+                <div class="who">Captain</div>
+                <div class="prev">Two directions for the launch note: a build-in-public thread…</div>
+              </span>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--ink-2)" stroke-width="2" stroke-linecap="round" style="margin-left:auto;flex:none"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg>
+            </div>
+            <div class="comp-row">
+              <button class="disc-quiet" aria-label="Add attachment">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              </button>
+              <div class="field focus"><span>Draft the 45s script</span></div>
+              <button class="send" aria-label="Send">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 3. COMPONENT LAB ============ -->
+  <section>
+    <div class="overline"><span class="n">3</span> Component lab — the uplifted vocabulary</div>
+    <div class="lab">
+      <div class="lab-card">
+        <h3>Icon discs</h3>
+        <div class="lab-row">
+          <span class="disc-hero" style="width:44px;height:44px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="6.4"/><circle cx="12" cy="12" r="2.3" fill="currentColor" stroke="none"/><path d="M12 1.8v3.6M12 18.6v3.6M1.8 12h3.6M18.6 12h3.6M4.8 4.8l2.6 2.6M16.6 16.6l2.6 2.6M19.2 4.8l-2.6 2.6M7.4 16.6l-2.6 2.6"/></svg></span>
+          <span class="disc-quiet"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>
+          <span class="disc-quiet" style="background:var(--surface)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg></span>
+        </div>
+        <div class="lab-note">44pt hero / 36pt quiet — every bare glyph on a card gets a disc, every disc ≥44pt hit target.</div>
+      </div>
+
+      <div class="lab-card">
+        <h3>Status pills</h3>
+        <div class="lab-row">
+          <span class="pill live"><span class="dot"></span>2 working</span>
+          <span class="pill idle"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5z"/></svg> Idle</span>
+        </div>
+        <div class="lab-note">Live = filled deep teal (AA 4.89:1) with a pulsing live dot; idle stays sunken grey so state reads at a glance.</div>
+      </div>
+
+      <div class="lab-card">
+        <h3>Buttons</h3>
+        <div class="lab-row">
+          <button class="btn primary">Talk to Captain</button>
+          <button class="btn quiet">Crew details</button>
+          <button class="btn primary" disabled>Send</button>
+        </div>
+        <div class="lab-note">One high-emphasis action per surface. Disabled = 40% opacity, never a new hue.</div>
+      </div>
+
+      <div class="lab-card">
+        <h3>Input cards</h3>
+        <div class="lab-row" style="flex-direction:column;align-items:stretch;gap:8px">
+          <div class="field"><span class="ph">Message</span></div>
+          <div class="field focus"><span>Draft the 45s script…</span></div>
+          <div class="field" style="opacity:.45"><span class="ph">Message</span></div>
+        </div>
+        <div class="lab-note">Pill fields with a hairline: empty / focused (3pt accent ring) / disabled.</div>
+      </div>
+
+      <div class="lab-card">
+        <h3>Bubbles</h3>
+        <div style="background:var(--sunken);border-radius:var(--r-sm);padding:10px;display:flex;flex-direction:column;gap:5px">
+          <div class="row them"><div class="bubble" style="font-size:13.5px">Incoming · 14pt corners<span class="meta">9:38</span></div></div>
+          <div class="row me"><div class="bubble" style="font-size:13.5px">Outgoing · tail keeps the side obvious<span class="meta">9:39</span></div></div>
+        </div>
+        <div class="lab-note">Radius lifted 8 → 14 to join the corner family; meta text promoted to the secondary token (AA on both fills).</div>
+      </div>
+
+      <div class="lab-card">
+        <h3>Manifest + error</h3>
+        <div class="lab-row">
+          <span class="memoji" style="--tint:#6A5ACD">🧭</span>
+          <span class="memoji" style="--tint:#E67E22">🎬</span>
+          <span style="font-size:12px;color:var(--danger);font-weight:600">Crew block failed validation</span>
+        </div>
+        <div class="lab-note">Identity discs share the tint-18% / ring-55% recipe everywhere; danger token owns errors only.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 4. WHAT CHANGED ============ -->
+  <section>
+    <div class="overline"><span class="n">4</span> What changed</div>
+    <ul class="changes">
+      <li><b>Captain card</b> <span>— flat grey slab → raised 20pt card, deep-teal helm disc with halo, teal role line, real press state.</span></li>
+      <li><b>Crew cards</b> <span>— tint-noise borders → neutral hairline + soft lift; identity first, status pill second, stack rings that match the card.</span></li>
+      <li><b>Section labels</b> <span>— ad-hoc 10.5px/1.2 tracking → one overline token (11/600/+0.08em) with an inline glyph.</span></li>
+      <li><b>Icon language</b> <span>— 14 different bare glyph sizes → two disc sizes (44 hero, 36 quiet) and three text sizes.</span></li>
+      <li><b>Composer</b> <span>— flat field on a grey strip → hairline pill field floating on a raised bar, focused state gets an accent ring.</span></li>
+      <li><b>Send / attach</b> <span>— coloured glyphs floating loose → filled deep-teal send disc (AA) + attach in a quiet disc.</span></li>
+      <li><b>Reply strip</b> <span>— flat grey row → bordered card with a deep-teal rail and clipped preview.</span></li>
+      <li><b>Bubbles</b> <span>— 8pt corners clashing with the 18pt composer → 14pt family, tail keeps sender side, meta text to AA.</span></li>
+      <li><b>Crew manifest card</b> <span>— accent wash + accent stroke + misaligned 46pt dividers → clean surface, accent lives only in the header glyph, dividers align to text at 52pt.</span></li>
+      <li><b>White-on-teal</b> <span>— accent #00A884 behind white text (3.03:1, fails WCAG) → deep teal #008069 (4.89:1) everywhere text sits on teal.</span></li>
+      <li><b>Corners</b> <span>— scattered 8/12/16/18 → four-step family: 8 / 14 / 20 / pill, nested containers share it.</span></li>
+      <li><b>Dark mode</b> <span>— depth by shadow that never renders → depth by hairline #2A3942, no shadows or blur.</span></li>
+    </ul>
+  </section>
+
+</div>
+
+<script>
+  const root = document.documentElement;
+  const saved = new URLSearchParams(location.search).get('theme') || localStorage.getItem('bn-theme');
+  if (saved) root.dataset.theme = saved;
+  document.querySelectorAll('[data-set-theme]').forEach(b => {
+    b.setAttribute('aria-pressed', b.dataset.setTheme === root.dataset.theme);
+    b.addEventListener('click', () => {
+      root.dataset.theme = b.dataset.setTheme;
+      localStorage.setItem('bn-theme', b.dataset.setTheme);
+      document.querySelectorAll('[data-set-theme]').forEach(x =>
+        x.setAttribute('aria-pressed', x.dataset.setTheme === b.dataset.setTheme));
+    });
+  });
+</script>
+</body>
+</html>
